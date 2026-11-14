@@ -22,15 +22,15 @@
 
 | HUD Principal (Interfaz + Avatar + Telemetría) | HUD Studio (Personalización Total en Vivo) |
 | :---: | :---: |
-| ![HUD Principal](documentación%20Oficial/assets/shot_hud_principal.png) | ![HUD Studio](documentación%20Oficial/assets/shot_hud_studio.png?v=2) |
+| ![HUD Principal](documentación%20Oficial/assets/shot_hud_principal.png) | ![HUD Studio](documentación%20Oficial/assets/shot_hud_studio_v2.png) |
 
 | Instalador Oficial · Paso 1 (Dependencias) | Instalador Oficial · Paso 4 (Voz TTS & Skin Live2D) |
 | :---: | :---: |
-| ![Instalador Paso 1](documentación%20Oficial/assets/shot_installer_step1.png?v=2) | ![Instalador Voz y Skin](documentación%20Oficial/assets/shot_installer_voz_skin.png?v=2) |
+| ![Instalador Paso 1](documentación%20Oficial/assets/shot_installer_step1_v2.png) | ![Instalador Voz y Skin](documentación%20Oficial/assets/shot_installer_voz_skin_v2.png) |
 
 | Clean Your TV (Debloat Android TV / Google TV) | Avatar Live2D (Cubism + Lip-Sync) | Donación PayPal Integrada en HUD |
 | :---: | :---: | :---: |
-| ![Clean Your TV](documentación%20Oficial/assets/shot_cleanyourtv.png?v=2) | ![Avatar Live2D](documentación%20Oficial/assets/shot_live2d_avatar.png) | ![Donación PayPal](documentación%20Oficial/assets/shot_donation_paypal.png?v=2) |
+| ![Clean Your TV](documentación%20Oficial/assets/shot_cleanyourtv_v2.png) | ![Avatar Live2D](documentación%20Oficial/assets/shot_live2d_avatar.png) | ![Donación PayPal](documentación%20Oficial/assets/shot_donation_paypal_v2.png) |
 
 ### Escenarios Ambientales Profesionales Incluidos
 | Penthouse Nocturno | Puente de Comando | Loft Arquitectónico |
