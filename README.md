@@ -30,7 +30,7 @@
 
 | Clean Your TV (Debloat Android TV / Google TV) | Avatar Live2D (Cubism + Lip-Sync) | Donación PayPal Integrada en HUD |
 | :---: | :---: | :---: |
-| ![Clean Your TV](documentación%20Oficial/assets/shot_cleanyourtv_v2.png) | ![Avatar Live2D](documentación%20Oficial/assets/shot_live2d_avatar.png) | ![Donación PayPal](documentación%20Oficial/assets/shot_donation_paypal_v2.png) |
+| ![Clean Your TV](documentación%20Oficial/assets/shot_cleanyourtv_v2.png) | ![Avatar Live2D Huohuo](documentación%20Oficial/assets/shot_live2d_huohuo.png) | ![Donación PayPal](documentación%20Oficial/assets/shot_donation_paypal_v2.png) |
 
 ### Escenarios Ambientales Profesionales Incluidos
 | Penthouse Nocturno | Puente de Comando | Loft Arquitectónico |
