@@ -394,5 +394,4 @@ Engineered by a developer building a real-world VIERNES-style assistant.
 
 | Platform | Link |
 | --- | --- |
-| YouTube | [@FatihMakes](https://www.youtube.com/@FatihMakes) |
-| Instagram | [@fatihmakes](https://www.instagram.com/fatihmakes) |
+| Documentation | [Documentación](https://[www.youtube.com/@FatihMakes](https://viernes.free.nf/)) |
