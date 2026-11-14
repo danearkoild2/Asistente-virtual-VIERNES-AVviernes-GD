@@ -1,0 +1,53 @@
+{
+  "tool_counts": {
+    "recall_book_knowledge": 2,
+    "get_current_time": 8,
+    "iptv_player": 47,
+    "medical_center": 1,
+    "voice_security": 1,
+    "now_playing": 1,
+    "openamika_companion": 6,
+    "smart_home": 2,
+    "video_player": 1,
+    "browser_control": 1,
+    "radio_player": 5,
+    "device_control": 14,
+    "repeat_last_said": 2,
+    "gmail_manager": 1,
+    "web_search": 7
+  },
+  "by_time": {
+    "morning": {
+      "get_current_time": 4,
+      "voice_security": 1,
+      "now_playing": 1,
+      "openamika_companion": 1,
+      "smart_home": 2,
+      "iptv_player": 2
+    },
+    "afternoon": {
+      "iptv_player": 10,
+      "openamika_companion": 5,
+      "get_current_time": 2,
+      "video_player": 1,
+      "browser_control": 1,
+      "radio_player": 4,
+      "device_control": 6,
+      "repeat_last_said": 1,
+      "gmail_manager": 1
+    },
+    "evening": {
+      "iptv_player": 1,
+      "radio_player": 1,
+      "device_control": 8,
+      "web_search": 7,
+      "repeat_last_said": 1
+    },
+    "night": {
+      "recall_book_knowledge": 2,
+      "get_current_time": 2,
+      "iptv_player": 34,
+      "medical_center": 1
+    }
+  }
+}

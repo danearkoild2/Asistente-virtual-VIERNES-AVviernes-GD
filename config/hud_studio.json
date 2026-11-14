@@ -1,0 +1,24 @@
+{
+  "theme_id": "obsidian_pro",
+  "accent_override": "",
+  "layout_preset": "studio",
+  "density": "balanced",
+  "card_radius": 12,
+  "show_left_panel": true,
+  "show_right_panel": true,
+  "left_width": 220,
+  "right_width": 290,
+  "glass_glow": true,
+  "hud_grid": true,
+  "bg_mode": "aurora_atmos",
+  "bg_custom_path": "",
+  "bg_dim": 0.42,
+  "bg_glow": 0.65,
+  "widgets": {
+    "voice_monitor": true,
+    "weather": true,
+    "system_metrics": true,
+    "news_panel": true,
+    "attachments": true
+  }
+}

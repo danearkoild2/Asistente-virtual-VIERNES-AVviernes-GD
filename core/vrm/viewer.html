@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Edith 3D VRM Autonomous Engine</title>
+  <script>
+    window.ERRORS = [];
+    window.addEventListener('error', function(e) {
+      window.ERRORS.push('ERR: ' + (e.message || e.error || e));
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      window.ERRORS.push('REJECT: ' + (e.reason ? (e.reason.message || e.reason.stack || e.reason) : e));
+    });
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #vrm-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: transparent;
+      /* CÁMARA Y PERSONAJE COMPLETAMENTE BLOQUEADOS PARA EL MOUSE: */
+      pointer-events: none !important;
+      cursor: default;
+    }
+    #loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: rgba(10, 12, 16, 0.88);
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      z-index: 50;
+      transition: opacity 0.4s ease-out;
+      pointer-events: none;
+    }
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border: 2.5px solid rgba(139, 92, 246, 0.2);
+      border-top-color: #8b5cf6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #debug-hud {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(10, 12, 16, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #94a3b8;
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      display: none;
+      z-index: 40;
+      pointer-events: none;
+    }
+  </style>
+
+  <!-- Import Map for standalone ES Modules -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./lib/three.module.js",
+        "three/addons/loaders/GLTFLoader.js": "./lib/GLTFLoader.js",
+        "@pixiv/three-vrm": "./lib/three-vrm.module.min.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text">Cargando presencia 3D de Edith…</div>
+  </div>
+
+  <canvas id="vrm-canvas"></canvas>
+
+  <div id="debug-hud">
+    <div><b>EDITH 3D AUTONOMOUS ENGINE</b></div>
+    <div id="hud-status">FPS: 60 | Estado: IDLE</div>
+    <div id="hud-behavior">Comportamiento: DESCANSO</div>
+    <div id="hud-locomotion">Locomoción: DETENIDA</div>
+    <div id="hud-flight">Vuelo: EN SUELO</div>
+    <div id="hud-emotion">Emoción: neutral (100%)</div>
+    <div id="hud-gesture">Gesto: NINGUNO</div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+
+    window.THREE = THREE;
+    window.VRMUtils = VRMUtils;
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 1. SISTEMA DE NAVEGACIÓN ESPACIAL EN HABITACIÓN VIRTUAL
+    // ══════════════════════════════════════════════════════════════════════════
+    const ROOM_WAYPOINTS = [
+      { id: 'CENTER_STAGE',     x:  0.00, z:  0.00, name: 'Escenario Principal', facingYaw:  0.00, weight: 35 },
+      { id: 'WINDOW_LEFT',      x: -0.65, z: -0.22, name: 'Mirador Ventana',     facingYaw: -0.42, weight: 20 },
+      { id: 'BOOKSHELF_RIGHT',  x:  0.65, z: -0.18, name: 'Librero y Estudio',    facingYaw:  0.38, weight: 20 },
+      { id: 'FOREGROUND_CLOSE', x:  0.18, z:  0.28, name: 'Cercanía Usuario',     facingYaw: -0.10, weight: 15 },
+      { id: 'BACK_PONDER',      x: -0.32, z: -0.35, name: 'Rincón de Reflexión',  facingYaw:  0.25, weight: 10 }
+    ];
+
+    const ROOM_BOUNDS = {
+      minX: -0.75,
+      maxX:  0.75,
+      minZ: -0.40,
+      maxZ:  0.35
+    };
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 2. EDITH 3D AUTONOMOUS ENGINE (THREE.JS + VRM 1.0)
+    // ══════════════════════════════════════════════════════════════════════════
+    class EdithVRMApp {
+      constructor() {
+        this.canvas = document.getElementById('vrm-canvas');
+        this.loadingOverlay = document.getElementById('loading-overlay');
+        this.loadingText = document.getElementById('loading-text');
+        this.debugHud = document.getElementById('debug-hud');
+
+        // Three.js Core
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.clock = new THREE.Clock();
+
+        // VRM & Humanoid Components
+        this.currentVrm = null;
+        this.isLoaded = false;
+        this.isRunning = true;
+        this.bones = {};
+        this.initialRotations = {};
+
+        // States & Conversational Audio
+        this.state = 'IDLE';
+        this.speaking = false;
+        this.amplitude = 0.0;
+        this.smoothedAmp = 0.0;
+        this.t = 0.0;
+        this.speechAttentionTimer = 0.0;
+
+        // Emotional Engine
+        this.currentEmotion = 'neutral';
+        this.emotionIntensity = 1.0;
+        this.emotionTimer = 0.0;
+        this.emotionDuration = 0.0;
+
+        // LookAt & Eye Gaze Saccades
+        this.gazeTarget = new THREE.Vector3(0, 1.45, 1.5);
+        this.gazeCurrent = new THREE.Vector3(0, 1.45, 1.5);
+        this.saccadeTimer = 0.0;
+        this.saccadeInterval = 3.0;
+
+        // Stochastic Blinking System
+        this.blinkTimer = 0.0;
+        this.nextBlink = 3.2;
+        this.blinkProgress = 0.0;
+        this.isBlinking = false;
+        this.isDoubleBlink = false;
+
+        // Procedural Gestures (Speech / Direct Action)
+        this.activeGesture = null;
+        this.gestureTimer = 0.0;
+        this.gestureDuration = 0.0;
+        this.gestureIntensity = 1.0;
+
+        // ── 3. LOCOMOCIÓN Y NAVEGACIÓN INTELIGENTE ────────────────────────────
+        this.modelPosition = new THREE.Vector3(0, 0, 0);
+        this.targetModelPosition = new THREE.Vector3(0, 0, 0);
+        this.startWalkPosition = new THREE.Vector3(0, 0, 0);
+        this.currentYaw = 0.0;
+        this.targetYaw = 0.0;
+        this.locomotionState = 'STOPPED'; // 'STOPPED', 'TURNING', 'ACCELERATING', 'CRUISING', 'BRAKING'
+        this._brakingTimer = 0.0;         // Temporizador para fase de frenado
+        this.walkCycle = 0.0;
+        this.walkProgress = 0.0;
+        this.walkDuration = 0.0;
+        this.walkCooldown = 8.0 + Math.random() * 12.0;
+        this.currentWaypointId = 'CENTER_STAGE';
+        this.turnSteppingPhase = 0.0;
+
+        // ── 4. SISTEMA DE VUELO REALISTA (8 FASES FÍSICAS) ────────────────────
+        this.flightState = 'GROUNDED'; // 'GROUNDED', 'TAKEOFF_CROUCH', 'LAUNCH_IMPULSE', 'ASCENT', 'HOVER_GLIDE', 'DESCENT', 'TOUCHDOWN', 'RESTORE'
+        this.flightTimer = 0.0;
+        this.flightPhaseDuration = 0.0;
+        this.flightAltitude = 0.0;
+        this.targetAltitude = 0.0;
+        this.flightCooldown = 35.0 + Math.random() * 45.0; // Vuelo ocasional y distinguido
+
+        // ── 5. SISTEMA AVANZADO DE ANIMACIONES IDLE (18 COMPORTAMIENTOS) ──────
+        this.activeIdleBehavior = null;
+        this.idleTimer = 0.0;
+        this.idleDuration = 0.0;
+        this.idleCooldown = 6.0 + Math.random() * 8.0;
+        this.idleHistory = []; // Memoria FIFO para evitar repeticiones
+        this.weightShift = 0.0;
+        this.targetWeightShift = 0.0;
+        this.weightShiftTimer = 0.0;
+        this.weightShiftInterval = 4.5;
+        this.breathePhase = 0.0;
+
+        // Personality Tuning
+        this.personality = {
+          energy: 1.0,
+          expressiveness: 1.0,
+          fidgetFrequency: 1.0,
+          postureShiftRate: 1.0,
+          headTiltBias: 0.0,
+          curiosityLevel: 1.0
+        };
+
+        // Camera Framing & Stage (Cámara bloqueada fija con encuadre completo de cuerpo)
+        this.cameraPreset = 'full';
+        this.targetCameraY = 0.86;
+        this.targetCameraDist = 3.65;
+        this.cameraLookY = 0.80;
+        this.isVRM0 = true;
+        this.baseOrientation = Math.PI;
+
+        // Performance / FPS
+        this.fpsCounter = 0;
+        this.fpsTimer = 0.0;
+        this.currentFps = 60;
+        this._sleepSkip = 0;
+
+        this.initThree();
+        this.setupLights();
+        this.setupEvents();
+
+        // Carga de modelo VRM
+        const params = new URLSearchParams(window.location.search);
+        const modelUrl = params.get('model') || './models/edithof.vrm';
+        this.loadModel(modelUrl);
+
+        this.animate = this.animate.bind(this);
+        requestAnimationFrame(this.animate);
+      }
+
+      // ── 1. CÁMARA TOTALMENTE BLOQUEADA (SIN INTERACCIÓN DE USUARIO) ────────
+      initThree() {
+        this.scene = new THREE.Scene();
+
+        const w = window.innerWidth || 800;
+        const h = window.innerHeight || 900;
+
+        // Perspectiva cinematográfica fija cuidadosamente encuadrada para nunca cortar cabeza ni pies
+        this.camera = new THREE.PerspectiveCamera(30.0, w / h, 0.1, 30.0);
+        this.camera.position.set(0.0, this.targetCameraY, this.targetCameraDist);
+        this.camera.lookAt(0.0, this.cameraLookY, 0.0);
+
+        this.renderer = new THREE.WebGLRenderer({
+          canvas: this.canvas,
+          alpha: true,
+          antialias: true,
+          powerPreference: "high-performance"
+        });
+        this.renderer.setSize(w, h);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
+        if (this.renderer.outputColorSpace !== undefined) {
+          this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        } else {
+          this.renderer.outputEncoding = THREE.sRGBEncoding;
+        }
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.08;
+
+        // NOTA DE SEGURIDAD: OrbitControls y controles de mouse están COMPLETAMENTE ELIMINADOS.
+        // El usuario no tiene forma de rotar, mover, arrastrar ni hacer zoom sobre Edith.
+      }
+
+      setupLights() {
+        // Iluminación suave de estudio anime
+        const ambient = new THREE.AmbientLight(0xffffff, 0.82);
+        this.scene.add(ambient);
+
+        const keyLight = new THREE.DirectionalLight(0xf4f0ff, 1.18);
+        keyLight.position.set(1.5, 2.8, 2.2);
+        this.scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0xdcfce7, 0.55);
+        fillLight.position.set(-2.0, 1.8, 1.5);
+        this.scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0xa78bfa, 0.85);
+        rimLight.position.set(0.0, 3.2, -2.5);
+        this.scene.add(rimLight);
+
+        // Auras holográficas proyectadas en el suelo al levitar
+        const auraGeo = new THREE.RingGeometry(0.24, 0.44, 48);
+        const auraMat = new THREE.MeshBasicMaterial({
+          color: 0x8b5cf6,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.0,
+          depthWrite: false
+        });
+        this.floatAura = new THREE.Mesh(auraGeo, auraMat);
+        this.floatAura.rotation.x = Math.PI / 2;
+        this.floatAura.position.y = 0.015;
+        this.scene.add(this.floatAura);
+
+        const innerAuraGeo = new THREE.RingGeometry(0.06, 0.20, 36);
+        const innerAuraMat = new THREE.MeshBasicMaterial({
+          color: 0x38bdf8,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.0,
+          depthWrite: false
+        });
+        this.floatAuraInner = new THREE.Mesh(innerAuraGeo, innerAuraMat);
+        this.floatAuraInner.rotation.x = Math.PI / 2;
+        this.floatAuraInner.position.y = 0.02;
+        this.scene.add(this.floatAuraInner);
+      }
+
+      setupEvents() {
+        window.addEventListener('resize', () => this.onResize());
+        // El mouse NO interactúa con la escena 3D ni con la cámara.
+      }
+
+      onResize() {
+        const w = window.innerWidth || 800;
+        const h = window.innerHeight || 900;
+        this.camera.aspect = w / h;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(w, h);
+        this.applyCameraFraming(this.cameraPreset);
+      }
+
+      // ── CARGA DEL MODELO VRM 1.0 / 0.X ─────────────────────────────────────
+      loadModel(url) {
+        if (this.loadingOverlay) {
+          this.loadingOverlay.style.display = 'flex';
+          this.loadingOverlay.style.opacity = '1';
+          if (this.loadingText) this.loadingText.innerText = "Inicializando presencia 3D de Edith…";
+        }
+
+        const loader = new GLTFLoader();
+        loader.crossOrigin = 'anonymous';
+        loader.register((parser) => new VRMLoaderPlugin(parser));
+
+        loader.load(
+          url,
+          (gltf) => {
+            try {
+              const vrm = gltf.userData.vrm;
+              if (!vrm) {
+                console.error("El archivo cargado no contiene metadatos VRM válidos.");
+                if (this.loadingText) this.loadingText.innerText = "Error: Modelo no es VRM válido.";
+                return;
+              }
+
+              if (this.currentVrm) {
+                this.scene.remove(this.currentVrm.scene);
+                VRMUtils.deepDispose(this.currentVrm.scene);
+              }
+
+              this.currentVrm = vrm;
+              this.scene.add(vrm.scene);
+
+              // Detectar versión de VRM para orientación frontal (+Z hacia la cámara/usuario)
+              const metaVersion = vrm.meta?.metaVersion;
+              this.isVRM0 = (metaVersion === "0" || metaVersion === 0 || !metaVersion);
+              this.baseOrientation = this.isVRM0 ? Math.PI : 0.0;
+
+              this.indexHumanoidBones(vrm);
+              this.isLoaded = true;
+              this.applyCameraFraming(this.cameraPreset);
+              this.hideLoading();
+              console.log("[VRM 3D] Edith modelo cargado correctamente:", url, "VRM0:", this.isVRM0);
+            } catch (err) {
+              console.error("[VRM 3D] Error procesando modelo cargado:", err);
+              if (this.loadingText) this.loadingText.innerText = "Error: " + err.message;
+            }
+          },
+          (progress) => {
+            if (this.loadingText) {
+              const loadedMB = (progress.loaded / (1024 * 1024)).toFixed(1);
+              if (progress.total > 0) {
+                const totalMB = (progress.total / (1024 * 1024)).toFixed(1);
+                const pct = Math.round((progress.loaded / progress.total) * 100);
+                this.loadingText.innerText = `Cargando presencia 3D (${pct}% - ${loadedMB}MB / ${totalMB}MB)…`;
+              } else {
+                this.loadingText.innerText = `Cargando presencia 3D (${loadedMB}MB)…`;
+              }
+            }
+          },
+          (error) => {
+            console.error("Error cargando modelo VRM:", error);
+            if (this.loadingText) {
+              this.loadingText.innerText = "Error cargando VRM: " + error.message;
+              this.loadingText.style.color = "#ff4466";
+            }
+          }
+        );
+      }
+
+      hideLoading() {
+        if (this.loadingOverlay) {
+          this.loadingOverlay.style.opacity = '0';
+          setTimeout(() => {
+            this.loadingOverlay.style.display = 'none';
+          }, 350);
+        }
+      }
+
+      indexHumanoidBones(vrm) {
+        this.bones = {};
+        this.initialRotations = {};
+        const humanoid = vrm.humanoid;
+        if (!humanoid) return;
+
+        const boneNames = [
+          'hips', 'spine', 'chest', 'upperChest', 'neck', 'head',
+          'leftShoulder', 'rightShoulder',
+          'leftUpperArm', 'rightUpperArm',
+          'leftLowerArm', 'rightLowerArm',
+          'leftHand', 'rightHand',
+          'leftUpperLeg', 'rightUpperLeg',
+          'leftLowerLeg', 'rightLowerLeg',
+          'leftFoot', 'rightFoot'
+        ];
+
+        for (const name of boneNames) {
+          const bone = humanoid.getNormalizedBoneNode ? humanoid.getNormalizedBoneNode(name) : (humanoid.getBoneNode ? humanoid.getBoneNode(name) : null);
+          if (bone) {
+            this.bones[name] = bone;
+            this.initialRotations[name] = bone.rotation.clone();
+          }
+        }
+      }
+
+      // ── BUCLE PRINCIPAL DE ANIMACIÓN Y COMPORTAMIENTO ──────────────────────
+      animate() {
+        if (!this.isRunning) return;
+        requestAnimationFrame(this.animate);
+
+        const dt = Math.min(0.1, this.clock.getDelta());
+        this.t += dt;
+
+        // FPS Tracker
+        this.fpsCounter++;
+        this.fpsTimer += dt;
+        if (this.fpsTimer >= 1.0) {
+          this.currentFps = this.fpsCounter;
+          this.fpsCounter = 0;
+          this.fpsTimer = 0.0;
+          this.updateDebugHud();
+        }
+
+        if (!this.currentVrm || !this.isLoaded) return;
+
+        const isSleep = (this.state === 'SLEEPING');
+
+        // Suspensión ecológica: limitar a 20 FPS en reposo
+        if (isSleep) {
+          this._sleepSkip++;
+          if (this._sleepSkip % 3 !== 0) return;
+        }
+
+        // 1. Suavizado de nivel de audio para habla
+        this.smoothedAmp += (this.amplitude - this.smoothedAmp) * Math.min(1.0, dt * 14.0);
+
+        // 2. Control de atención conversacional
+        if (this.speaking || this.state === 'SPEAKING' || this.state === 'LISTENING' || this.state === 'THINKING') {
+          this.speechAttentionTimer = 6.0; // Mantener atención hacia el usuario
+        } else if (this.speechAttentionTimer > 0.0) {
+          this.speechAttentionTimer -= dt;
+        }
+
+        // 3. Sistema Autónomo de Comportamiento y Decisión
+        this.updateAutonomousBehavior(dt, isSleep);
+
+        // 4. Locomoción Terrestre y Rotaciones Naturales
+        this.updateLocomotionAndRotations(dt, isSleep);
+
+        // 5. Sistema de Vuelo y Levitation
+        this.updateFlightPhysics(dt, isSleep);
+
+        // 6. Postura Base, Respiración y Animaciones Idle
+        this.updateBodyStanceAndIdles(dt, isSleep);
+
+        // 7. Gestos Procedurales y Habla
+        this.updateProceduralGestures(dt, isSleep);
+
+        // 8. Expresiones y Lip-Sync
+        this.updateExpressions(dt, isSleep);
+
+        // 9. Mirada (LookAt)
+        this.updateGazeLookAt(dt, isSleep);
+
+        // 10. Físicas Secundarias SpringBone (Cabello, Ropa)
+        this.currentVrm.update(dt);
+
+        // 11. Renderizado final
+        this.renderer.render(this.scene, this.camera);
+      }
+
+      // ── 2. SISTEMA AUTÓNOMO DE TOMA DE DECISIONES ──────────────────────────
+      updateAutonomousBehavior(dt, isSleep) {
+        if (isSleep) return;
+
+        // Si hay conversación activa, interrumpir desplazamientos suavemente
+        const isConversing = (this.speechAttentionTimer > 0.0);
+
+        // Decisión de Vuelo Ocasional
+        if (!isConversing && this.flightState === 'GROUNDED' && this.locomotionState === 'STOPPED' && !this.activeGesture && !this.activeIdleBehavior) {
+          this.flightCooldown -= dt;
+          if (this.flightCooldown <= 0.0) {
+            this.flightCooldown = 38.0 + Math.random() * 45.0;
+            // 25% de probabilidad de elevarse si la energía o curiosidad lo ameritan
+            if (Math.random() < 0.35 * this.personality.energy) {
+              this.initiateFlightSequence();
+              return;
+            }
+          }
+        }
+
+        // Decisión de Locomoción Terrestre (Pasear, Explorar un rincón)
+        if (!isConversing && this.flightState === 'GROUNDED' && this.locomotionState === 'STOPPED' && !this.activeGesture && !this.activeIdleBehavior) {
+          this.walkCooldown -= dt;
+          if (this.walkCooldown <= 0.0) {
+            this.walkCooldown = (10.0 + Math.random() * 15.0) / this.personality.curiosityLevel;
+            this.decideNextLocomotionDestination();
+          }
+        }
+
+        // Decisión de Animación de Personalidad (Idle Behavior)
+        if (!isConversing && this.locomotionState === 'STOPPED' && this.flightState === 'GROUNDED' && !this.activeGesture && !this.activeIdleBehavior) {
+          this.idleCooldown -= dt;
+          if (this.idleCooldown <= 0.0) {
+            this.idleCooldown = (6.5 + Math.random() * 9.0) / this.personality.fidgetFrequency;
+            this.triggerRandomPersonalityIdle();
+          }
+        }
+      }
+
+      decideNextLocomotionDestination() {
+        // Seleccionar un waypoint diferente con ponderación
+        const candidates = ROOM_WAYPOINTS.filter(w => w.id !== this.currentWaypointId);
+        let totalWeight = candidates.reduce((sum, w) => sum + w.weight, 0);
+        let rnd = Math.random() * totalWeight;
+        let chosen = candidates[0];
+
+        for (const cand of candidates) {
+          if (rnd < cand.weight) {
+            chosen = cand;
+            break;
+          }
+          rnd -= cand.weight;
+        }
+
+        // Añadir una pequeña variación natural al punto exacto (+/- 6 cm)
+        const targetX = THREE.MathUtils.clamp(chosen.x + (Math.random() - 0.5) * 0.12, ROOM_BOUNDS.minX, ROOM_BOUNDS.maxX);
+        const targetZ = THREE.MathUtils.clamp(chosen.z + (Math.random() - 0.5) * 0.10, ROOM_BOUNDS.minZ, ROOM_BOUNDS.maxZ);
+
+        this.startWalkingTo(targetX, targetZ, chosen.facingYaw, chosen.id);
+      }
+
+      startWalkingTo(targetX, targetZ, finalFacingYaw, waypointId = '') {
+        const dx = targetX - this.modelPosition.x;
+        const dz = targetZ - this.modelPosition.z;
+        const dist = Math.hypot(dx, dz);
+        if (dist < 0.08) return;
+
+        this.startWalkPosition.copy(this.modelPosition);
+        this.targetModelPosition.set(targetX, 0, targetZ);
+        this.currentWaypointId = waypointId;
+
+        // Calcular ángulo hacia el destino
+        const travelAngle = Math.atan2(dx, dz);
+        this.targetYaw = travelAngle;
+        this.finalFacingYaw = finalFacingYaw !== undefined ? finalFacingYaw : travelAngle;
+
+        this.walkDuration = Math.max(2.6, dist / (0.28 * this.personality.energy));
+        this.walkProgress = 0.0;
+        this.walkCycle = 0.0;
+        this.turnSteppingPhase = 0.0;
+
+        // Primero orientarse si la diferencia de ángulo es notable
+        const angleDiff = Math.abs(this.normalizeAngle(this.targetYaw - this.currentYaw));
+        if (angleDiff > 0.35) {
+          this.locomotionState = 'TURNING';
+        } else {
+          this.locomotionState = 'ACCELERATING';
+        }
+      }
+
+      normalizeAngle(a) {
+        while (a > Math.PI) a -= Math.PI * 2;
+        while (a < -Math.PI) a += Math.PI * 2;
+        return a;
+      }
+
+      // ── 3. ROTACIONES NATURALES Y LOCOMOCIÓN FÍSICAMENTE REALISTA ───────────
+      updateLocomotionAndRotations(dt, isSleep) {
+        if (!this.currentVrm || isSleep) return;
+
+        // Si el usuario está interactuando o hablando, orientar el cuerpo hacia el frente
+        if (this.speechAttentionTimer > 0.0) {
+          if (this.locomotionState !== 'STOPPED') {
+            // Frenado suave inmediato
+            this.locomotionState = 'STOPPED';
+          }
+          this.targetYaw = 0.0; // Mirar al frente hacia el usuario
+        }
+
+        // Interpolación angular suave (elimina giros bruscos o instantáneos)
+        const angleDiff = this.normalizeAngle(this.targetYaw - this.currentYaw);
+        const maxAngularSpeed = 2.4 * dt;
+        const deltaYaw = THREE.MathUtils.clamp(angleDiff, -maxAngularSpeed, maxAngularSpeed);
+        this.currentYaw += deltaYaw;
+
+        // Micro-pasos al girar en su lugar — rango reducido y suavizado
+        const isTurningInPlace = Math.abs(deltaYaw) > 0.008 && this.locomotionState !== 'CRUISING';
+        if (isTurningInPlace) {
+          this.turnSteppingPhase += dt * 4.0;
+          const turnStep = Math.sin(this.turnSteppingPhase);
+          const liftAmt = Math.max(0.0, turnStep) * 0.6; // 0..0.6, suave
+          if (deltaYaw > 0) {
+            // Girando derecha: levanta pierna derecha levemente
+            if (this.bones['rightUpperLeg']) this.bones['rightUpperLeg'].rotation.x = THREE.MathUtils.degToRad(-liftAmt * 10.0);
+            if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = THREE.MathUtils.degToRad(liftAmt * 14.0 + 2.0);
+            if (this.bones['rightFoot'])     this.bones['rightFoot'].rotation.x = THREE.MathUtils.degToRad(liftAmt * -4.0);
+            if (this.bones['leftUpperLeg'])  this.bones['leftUpperLeg'].rotation.x  = 0;
+            if (this.bones['leftLowerLeg'])  this.bones['leftLowerLeg'].rotation.x  = THREE.MathUtils.degToRad(2.0);
+            if (this.bones['leftFoot'])      this.bones['leftFoot'].rotation.x = 0;
+          } else {
+            // Girando izquierda: levanta pierna izquierda levemente
+            if (this.bones['leftUpperLeg'])  this.bones['leftUpperLeg'].rotation.x  = THREE.MathUtils.degToRad(-liftAmt * 10.0);
+            if (this.bones['leftLowerLeg'])  this.bones['leftLowerLeg'].rotation.x  = THREE.MathUtils.degToRad(liftAmt * 14.0 + 2.0);
+            if (this.bones['leftFoot'])      this.bones['leftFoot'].rotation.x = THREE.MathUtils.degToRad(liftAmt * -4.0);
+            if (this.bones['rightUpperLeg']) this.bones['rightUpperLeg'].rotation.x = 0;
+            if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = THREE.MathUtils.degToRad(2.0);
+            if (this.bones['rightFoot'])     this.bones['rightFoot'].rotation.x = 0;
+          }
+          if (this.locomotionState === 'TURNING' && Math.abs(angleDiff) < 0.20) {
+            this.locomotionState = 'ACCELERATING';
+          }
+        }
+
+        // ── CINEMÁTICA DE CAMINATA PROFESIONAL ────────────────────────────────
+        let hipDip = 0.0;
+        let walkSwing = 0.0;
+
+        // Factor de blend suave al entrar/salir de la caminata
+        if (!this._walkBlend) this._walkBlend = 0.0;
+
+        const isWalking = (this.locomotionState === 'ACCELERATING' || this.locomotionState === 'CRUISING' || this.locomotionState === 'BRAKING');
+        this._walkBlend += ((isWalking ? 1.0 : 0.0) - this._walkBlend) * Math.min(1.0, dt * 5.5);
+        const wb = this._walkBlend; // 0 = parado, 1 = plena marcha
+
+        if (isWalking) {
+          this.walkProgress += dt / this.walkDuration;
+          const prog = Math.min(1.0, this.walkProgress);
+
+          // Transición de estado: ACCELERATING → CRUISING → BRAKING
+          if (this.locomotionState === 'ACCELERATING' && this.walkProgress >= 0.15) {
+            this.locomotionState = 'CRUISING';
+          }
+
+          // S-Curve suave de posición (aceleración + desaceleración)
+          const smoothProg = prog * prog * (3.0 - 2.0 * prog);
+          this.modelPosition.lerpVectors(this.startWalkPosition, this.targetModelPosition, smoothProg);
+
+          // Velocidad de ciclo adaptada: se frena en fase BRAKING
+          const brakeFactor = this.locomotionState === 'BRAKING'
+            ? Math.max(0.3, 1.0 - (this._brakingTimer || 0.0) * 1.8)
+            : 1.0;
+          const cycleSpeed = 3.8 * this.personality.energy * brakeFactor;
+          this.walkCycle += dt * cycleSpeed;
+          walkSwing = Math.sin(this.walkCycle); // −1..+1
+
+          // ── Muslo (upperLeg): pitchado hacia adelante/atrás ────────────
+          // Rango contenido: ±18° evita deformación en la raíz del hueso
+          const upperLegAngle = 18.0;
+          const leftUpperX  = -walkSwing * upperLegAngle;
+          const rightUpperX =  walkSwing * upperLegAngle;
+
+          // ── Rodilla (lowerLeg): solo dobla hacia atrás en pierna levantada ─
+          // Formula: cuando el muslo va hacia atrás (fase de vuelo), la rodilla dobla
+          // leftKnee activa cuando walkSwing < 0 (muslo izquierdo atrás = pie arriba)
+          const liftL = Math.max(0.0, -walkSwing); // 0..1 fase de elevación izq
+          const liftR = Math.max(0.0,  walkSwing); // 0..1 fase de elevación der
+          const kneeBase  = 2.0;  // leve flexión permanente antiartifact
+          const kneePeak  = 28.0; // pico de flexión al alzar el pie
+          const leftLowerX  = kneeBase + liftL * kneePeak;
+          const rightLowerX = kneeBase + liftR * kneePeak;
+
+          // ── Tobillo (foot): compensa para que el pie quede plano ────────
+          // Cuando el muslo rota X grados y la rodilla agrega más, el pie compensa
+          // para que el metatarso no toque el suelo en punta ni en tacón
+          const leftFootX  = (leftUpperX  * 0.55 - leftLowerX  * 0.28);
+          const rightFootX = (rightUpperX * 0.55 - rightLowerX * 0.28);
+
+          // ── Pelvis: dip vertical + leve balanceo lateral ─────────────────
+          hipDip = -Math.abs(walkSwing) * 0.012;
+          const hipRollZ  =  Math.cos(this.walkCycle) * 1.8; // lateral
+          const hipYawY   = -walkSwing * 2.0;                // rotación menor
+
+          // ── Columna: contratorsión espinal (balances naturales) ──────────
+          const spineYaw  =  walkSwing * 2.5;
+
+          // ── Aplicar con blend suave ──────────────────────────────────────
+          if (this.bones['leftUpperLeg'])  this.bones['leftUpperLeg'].rotation.x  = THREE.MathUtils.degToRad(leftUpperX  * wb);
+          if (this.bones['rightUpperLeg']) this.bones['rightUpperLeg'].rotation.x = THREE.MathUtils.degToRad(rightUpperX * wb);
+          if (this.bones['leftLowerLeg'])  this.bones['leftLowerLeg'].rotation.x  = THREE.MathUtils.degToRad(leftLowerX  * wb);
+          if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = THREE.MathUtils.degToRad(rightLowerX * wb);
+          if (this.bones['leftFoot'])      this.bones['leftFoot'].rotation.x      = THREE.MathUtils.degToRad(leftFootX   * wb);
+          if (this.bones['rightFoot'])     this.bones['rightFoot'].rotation.x     = THREE.MathUtils.degToRad(rightFootX  * wb);
+
+          if (this.bones['hips']) {
+            this.bones['hips'].rotation.z = THREE.MathUtils.degToRad(hipRollZ * wb);
+            this.bones['hips'].rotation.y = THREE.MathUtils.degToRad(hipYawY  * wb);
+          }
+          if (this.bones['spine']) {
+            this.bones['spine'].rotation.y = THREE.MathUtils.degToRad(spineYaw * wb);
+          }
+
+          if (this.walkProgress >= 0.85 && this.locomotionState === 'CRUISING') {
+            this.locomotionState = 'BRAKING';
+            this._brakingTimer = 0.0;
+          }
+
+          if (this.locomotionState === 'BRAKING') {
+            this._brakingTimer = (this._brakingTimer || 0.0) + dt;
+          }
+
+          if (this.walkProgress >= 1.0) {
+            this.locomotionState = 'STOPPED';
+            this.modelPosition.copy(this.targetModelPosition);
+            this.targetYaw = this.finalFacingYaw;
+            // Cooldown post-caminata: no hacer idle inmediatamente
+            this.idleCooldown = Math.max(this.idleCooldown, 2.0);
+          }
+        } else {
+          // Retorno lerpeado a neutral cuando para — sin snap brusco
+          if (wb > 0.005) {
+            const lerpBack = Math.min(1.0, dt * 6.0);
+            const lerp0 = (b) => b + (0 - b) * lerpBack;
+            const lerp2 = (b) => b + (THREE.MathUtils.degToRad(2.0) - b) * lerpBack;
+            if (this.bones['leftUpperLeg'])  this.bones['leftUpperLeg'].rotation.x  = lerp0(this.bones['leftUpperLeg'].rotation.x);
+            if (this.bones['rightUpperLeg']) this.bones['rightUpperLeg'].rotation.x = lerp0(this.bones['rightUpperLeg'].rotation.x);
+            if (this.bones['leftLowerLeg'])  this.bones['leftLowerLeg'].rotation.x  = lerp2(this.bones['leftLowerLeg'].rotation.x);
+            if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = lerp2(this.bones['rightLowerLeg'].rotation.x);
+            if (this.bones['leftFoot'])      this.bones['leftFoot'].rotation.x  = lerp0(this.bones['leftFoot'].rotation.x);
+            if (this.bones['rightFoot'])     this.bones['rightFoot'].rotation.x = lerp0(this.bones['rightFoot'].rotation.x);
+            if (this.bones['hips']) {
+              this.bones['hips'].rotation.z = lerp0(this.bones['hips'].rotation.z);
+              this.bones['hips'].rotation.y = lerp0(this.bones['hips'].rotation.y);
+            }
+            if (this.bones['spine']) this.bones['spine'].rotation.y = lerp0(this.bones['spine'].rotation.y);
+          }
+        }
+
+        // Aplicar posición y rotación sincronizada al nodo raíz del modelo
+        const finalY = (this.flightState === 'GROUNDED') ? hipDip : this.flightAltitude;
+        this.currentVrm.scene.position.set(this.modelPosition.x, finalY, this.modelPosition.z);
+        this.currentVrm.scene.rotation.y = this.currentYaw + (this.baseOrientation !== undefined ? this.baseOrientation : Math.PI);
+      }
+
+      // ── 4. SISTEMA DE VUELO REALISTA (8 FASES FÍSICAS RECONOCIBLES) ────────
+      initiateFlightSequence() {
+        this.flightState = 'TAKEOFF_CROUCH';
+        this.flightTimer = 0.0;
+        this.flightPhaseDuration = 0.55;
+        this.targetAltitude = 0.65; // Altura de vuelo flotante
+      }
+
+      cancelFlightAndLand() {
+        if (this.flightState !== 'GROUNDED' && this.flightState !== 'TOUCHDOWN' && this.flightState !== 'RESTORE') {
+          this.flightState = 'DESCENT';
+          this.flightTimer = 0.0;
+          this.flightPhaseDuration = 0.8;
+        }
+      }
+
+      updateFlightPhysics(dt, isSleep) {
+        if (isSleep || !this.currentVrm) return;
+
+        // Si se inicia conversación durante el vuelo, aterrizar con elegancia
+        if (this.speechAttentionTimer > 0.0 && this.flightState === 'HOVER_GLIDE') {
+          this.cancelFlightAndLand();
+        }
+
+        const floatLerp = Math.min(1.0, dt * 3.5);
+
+        switch (this.flightState) {
+          case 'TAKEOFF_CROUCH':
+            this.flightTimer += dt;
+            const crouchProg = Math.min(1.0, this.flightTimer / this.flightPhaseDuration);
+            const crouchEnv = Math.sin(crouchProg * Math.PI * 0.5);
+            this.flightAltitude = -0.07 * crouchEnv; // Flexión previa al salto
+
+            // Flexión de rodillas e inclinación de torso
+            if (this.bones['leftUpperLeg']) this.bones['leftUpperLeg'].rotation.x = THREE.MathUtils.degToRad(-16.0 * crouchEnv);
+            if (this.bones['rightUpperLeg']) this.bones['rightUpperLeg'].rotation.x = THREE.MathUtils.degToRad(-16.0 * crouchEnv);
+            if (this.bones['leftLowerLeg']) this.bones['leftLowerLeg'].rotation.x = THREE.MathUtils.degToRad(32.0 * crouchEnv);
+            if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = THREE.MathUtils.degToRad(32.0 * crouchEnv);
+            if (this.bones['spine']) this.bones['spine'].rotation.x = THREE.MathUtils.degToRad(10.0 * crouchEnv);
+
+            if (this.flightTimer >= this.flightPhaseDuration) {
+              this.flightState = 'LAUNCH_IMPULSE';
+              this.flightTimer = 0.0;
+              this.flightPhaseDuration = 0.22;
+            }
+            break;
+
+          case 'LAUNCH_IMPULSE':
+            this.flightTimer += dt;
+            // Impulso hacia arriba rápido
+            this.flightAltitude += dt * 1.8;
+            if (this.bones['leftLowerLeg']) this.bones['leftLowerLeg'].rotation.x = 0;
+            if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = 0;
+            if (this.bones['leftFoot']) this.bones['leftFoot'].rotation.x = THREE.MathUtils.degToRad(28.0);
+            if (this.bones['rightFoot']) this.bones['rightFoot'].rotation.x = THREE.MathUtils.degToRad(28.0);
+
+            if (this.flightTimer >= this.flightPhaseDuration) {
+              this.flightState = 'ASCENT';
+              this.flightTimer = 0.0;
+              this.flightPhaseDuration = 0.85;
+            }
+            break;
+
+          case 'ASCENT':
+            this.flightTimer += dt;
+            const ascProg = Math.min(1.0, this.flightTimer / this.flightPhaseDuration);
+            const ascEase = Math.sin(ascProg * Math.PI * 0.5);
+            this.flightAltitude += (this.targetAltitude - this.flightAltitude) * floatLerp;
+
+            if (this.flightTimer >= this.flightPhaseDuration) {
+              this.flightState = 'HOVER_GLIDE';
+              this.flightTimer = 0.0;
+              this.flightPhaseDuration = 8.0 + Math.random() * 8.0; // Duración flotando
+            }
+            break;
+
+          case 'HOVER_GLIDE':
+            this.flightTimer += dt;
+            // Levitación con oscilación armónica suave
+            const hoverWave = Math.sin(this.t * 1.8) * 0.035 + Math.cos(this.t * 3.1) * 0.015;
+            this.flightAltitude = this.targetAltitude + hoverWave;
+
+            // Postura etérea de levitación: piernas gráciles, dedos apuntando hacia abajo
+            if (this.bones['leftUpperLeg']) this.bones['leftUpperLeg'].rotation.x = THREE.MathUtils.degToRad(12.0 + Math.sin(this.t * 1.4) * 3.0);
+            if (this.bones['rightUpperLeg']) this.bones['rightUpperLeg'].rotation.x = THREE.MathUtils.degToRad(8.0 - Math.sin(this.t * 1.4) * 2.5);
+            if (this.bones['leftLowerLeg']) this.bones['leftLowerLeg'].rotation.x = THREE.MathUtils.degToRad(18.0);
+            if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = THREE.MathUtils.degToRad(20.0);
+            if (this.bones['leftFoot']) this.bones['leftFoot'].rotation.x = THREE.MathUtils.degToRad(26.0);
+            if (this.bones['rightFoot']) this.bones['rightFoot'].rotation.x = THREE.MathUtils.degToRad(24.0);
+
+            if (this.flightTimer >= this.flightPhaseDuration) {
+              this.flightState = 'DESCENT';
+              this.flightTimer = 0.0;
+              this.flightPhaseDuration = 1.2;
+            }
+            break;
+
+          case 'DESCENT':
+            this.flightTimer += dt;
+            const descProg = Math.min(1.0, this.flightTimer / this.flightPhaseDuration);
+            this.flightAltitude += (0.0 - this.flightAltitude) * Math.min(1.0, dt * 2.8);
+
+            // Preparando los pies para el aterrizaje
+            if (this.bones['leftLowerLeg']) this.bones['leftLowerLeg'].rotation.x = THREE.MathUtils.degToRad(10.0 * (1 - descProg));
+            if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = THREE.MathUtils.degToRad(10.0 * (1 - descProg));
+            if (this.bones['leftFoot']) this.bones['leftFoot'].rotation.x = THREE.MathUtils.degToRad(12.0 * (1 - descProg));
+            if (this.bones['rightFoot']) this.bones['rightFoot'].rotation.x = THREE.MathUtils.degToRad(12.0 * (1 - descProg));
+
+            if (this.flightAltitude <= 0.04 || this.flightTimer >= this.flightPhaseDuration) {
+              this.flightState = 'TOUCHDOWN';
+              this.flightTimer = 0.0;
+              this.flightPhaseDuration = 0.38;
+              this.flightAltitude = 0.0;
+            }
+            break;
+
+          case 'TOUCHDOWN':
+            this.flightTimer += dt;
+            // Amortiguación del aterrizaje (impacto elástico con rodillas)
+            const tdProg = Math.min(1.0, this.flightTimer / this.flightPhaseDuration);
+            const tdEnv = Math.sin(tdProg * Math.PI);
+            this.flightAltitude = -0.06 * tdEnv;
+
+            if (this.bones['leftUpperLeg']) this.bones['leftUpperLeg'].rotation.x = THREE.MathUtils.degToRad(-14.0 * tdEnv);
+            if (this.bones['rightUpperLeg']) this.bones['rightUpperLeg'].rotation.x = THREE.MathUtils.degToRad(-14.0 * tdEnv);
+            if (this.bones['leftLowerLeg']) this.bones['leftLowerLeg'].rotation.x = THREE.MathUtils.degToRad(28.0 * tdEnv);
+            if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = THREE.MathUtils.degToRad(28.0 * tdEnv);
+
+            if (this.flightTimer >= this.flightPhaseDuration) {
+              this.flightState = 'RESTORE';
+              this.flightTimer = 0.0;
+              this.flightPhaseDuration = 0.45;
+              this.flightAltitude = 0.0;
+            }
+            break;
+
+          case 'RESTORE':
+            this.flightTimer += dt;
+            if (this.flightTimer >= this.flightPhaseDuration) {
+              this.flightState = 'GROUNDED';
+              this.flightAltitude = 0.0;
+            }
+            break;
+
+          default:
+            this.flightAltitude = 0.0;
+        }
+
+        // Actualización visual de los anillos holográficos del suelo
+        if (this.floatAura && this.floatAuraInner) {
+          const isLevitating = (this.flightState !== 'GROUNDED');
+          const targetAuraOp = isLevitating ? (0.45 + Math.sin(this.t * 3.5) * 0.15) : 0.0;
+          this.floatAura.material.opacity += (targetAuraOp - this.floatAura.material.opacity) * Math.min(1.0, dt * 4.0);
+          this.floatAuraInner.material.opacity = this.floatAura.material.opacity * 0.85;
+          this.floatAura.rotation.z += dt * 0.4;
+          this.floatAuraInner.rotation.z -= dt * 0.6;
+          this.floatAura.position.x = this.modelPosition.x;
+          this.floatAura.position.z = this.modelPosition.z;
+          this.floatAuraInner.position.x = this.modelPosition.x;
+          this.floatAuraInner.position.z = this.modelPosition.z;
+        }
+      }
+
+      // ── 5. POSTURA BASE, RESPIRACIÓN Y ANIMACIONES IDLE DE PERSONALIDAD ─────
+      updateBodyStanceAndIdles(dt, isSleep) {
+        if (!this.currentVrm) return;
+
+        // Respiración multi-armónica continua y sutil
+        const breatheSpeed = isSleep ? 0.95 : (1.35 + (this.speaking ? 0.5 : 0.0));
+        this.breathePhase += dt * breatheSpeed;
+        const breath = Math.sin(this.breathePhase);
+
+        if (this.bones['chest']) {
+          this.bones['chest'].rotation.x = THREE.MathUtils.degToRad(breath * 1.6 * this.personality.energy);
+        }
+        if (this.bones['spine']) {
+          this.bones['spine'].rotation.x = THREE.MathUtils.degToRad(breath * 0.8 * this.personality.energy);
+        }
+
+        // Si está en el suelo y sin caminar, ejecutar cambio de peso postural orgánico
+        if (this.flightState === 'GROUNDED' && this.locomotionState === 'STOPPED') {
+          if (!isSleep) {
+            this.weightShiftTimer += dt;
+            if (this.weightShiftTimer >= this.weightShiftInterval) {
+              this.weightShiftTimer = 0.0;
+              this.weightShiftInterval = (4.0 + Math.random() * 5.5) / this.personality.postureShiftRate;
+              this.targetWeightShift = (Math.random() - 0.5) * 1.5;
+            }
+          } else {
+            this.targetWeightShift = 0.0;
+          }
+
+          this.weightShift += (this.targetWeightShift - this.weightShift) * Math.min(1.0, dt * 1.8);
+
+          if (this.bones['leftUpperLeg']) this.bones['leftUpperLeg'].rotation.x = THREE.MathUtils.degToRad(this.weightShift * 1.5);
+          if (this.bones['rightUpperLeg']) this.bones['rightUpperLeg'].rotation.x = THREE.MathUtils.degToRad(-this.weightShift * 1.5);
+          if (this.bones['leftLowerLeg']) this.bones['leftLowerLeg'].rotation.x = THREE.MathUtils.degToRad(2.0);
+          if (this.bones['rightLowerLeg']) this.bones['rightLowerLeg'].rotation.x = THREE.MathUtils.degToRad(2.0);
+          if (this.bones['leftFoot']) this.bones['leftFoot'].rotation.x = 0;
+          if (this.bones['rightFoot']) this.bones['rightFoot'].rotation.x = 0;
+
+          if (this.bones['hips']) {
+            this.bones['hips'].rotation.z = THREE.MathUtils.degToRad(-this.weightShift * 2.8);
+            this.bones['hips'].rotation.y = THREE.MathUtils.degToRad(this.weightShift * 1.8);
+          }
+          if (this.bones['spine']) {
+            this.bones['spine'].rotation.z = THREE.MathUtils.degToRad(this.weightShift * 1.2);
+          }
+        }
+      }
+
+      // Catálogo de 18 comportamientos de personalidad no repetitivos
+      triggerRandomPersonalityIdle() {
+        const BEHAVIORS = [
+          'HAIR_TUCK',           // Acomodarse el flequillo/pelo
+          'ARMS_CROSSED',        // Cruzar los brazos con compostura
+          'HAND_TO_CHIN',        // Mano al mentón reflexionando
+          'HEAD_TILT_CURIOSITY', // Inclinar cabeza por curiosidad
+          'LOOK_AROUND_ROOM',    // Mirar esquinas y ventana
+          'GENTLE_STRETCH',      // Estiramiento suave y reconfortante
+          'HANDS_BEHIND_BACK',   // Manos entrelazadas en la espalda
+          'LOOK_DOWN_SHY',       // Bajar la mirada con timidez
+          'SHY_FIDGET',          // Jugar con sus dedos
+          'LITTLE_HOP_JOY',      // Pequeño rebote de entusiasmo
+          'YAWN_SLEEPY',         // Bostezo elegante con mano en boca
+          'INSPECT_HANDS',       // Mirar sus propias manos
+          'DEEP_BREATHE',        // Suspiro relajante
+          'GENTLE_SWAY',         // Balanceo sereno
+          'WARM_SMILE'           // Sonrisa espontánea al entorno
+        ];
+
+        // Filtrar los últimos 5 para evitar cualquier sensación mecánica
+        const pool = BEHAVIORS.filter(b => !this.idleHistory.slice(-5).includes(b));
+        const choice = (pool.length > 0) ? pool[Math.floor(Math.random() * pool.length)] : BEHAVIORS[0];
+
+        this.idleHistory.push(choice);
+        if (this.idleHistory.length > 8) this.idleHistory.shift();
+
+        this.activeIdleBehavior = choice;
+        this.idleTimer = 0.0;
+
+        const durations = {
+          'HAIR_TUCK': 4.5,
+          'ARMS_CROSSED': 5.2,
+          'HAND_TO_CHIN': 4.8,
+          'HEAD_TILT_CURIOSITY': 4.0,
+          'LOOK_AROUND_ROOM': 5.5,
+          'GENTLE_STRETCH': 4.8,
+          'HANDS_BEHIND_BACK': 5.0,
+          'LOOK_DOWN_SHY': 4.2,
+          'SHY_FIDGET': 4.5,
+          'LITTLE_HOP_JOY': 2.8,
+          'YAWN_SLEEPY': 4.2,
+          'INSPECT_HANDS': 4.4,
+          'DEEP_BREATHE': 4.0,
+          'GENTLE_SWAY': 4.8,
+          'WARM_SMILE': 3.5
+        };
+        this.idleDuration = durations[choice] || 4.2;
+      }
+
+      // ── 7. CINEMÁTICA PROCEDURAL DE BRAZOS, GESTOS Y VIGNETTES ─────────────
+      updateProceduralGestures(dt, isSleep) {
+        const leftArm = this.bones['leftUpperArm'];
+        const rightArm = this.bones['rightUpperArm'];
+        const leftElbow = this.bones['leftLowerArm'];
+        const rightElbow = this.bones['rightLowerArm'];
+        const head = this.bones['head'];
+
+        // Postura drapeada natural
+        const baseZ_L = THREE.MathUtils.degToRad(72.0);
+        const baseZ_R = THREE.MathUtils.degToRad(-72.0);
+
+        let targetZ_L = baseZ_L;
+        let targetZ_R = baseZ_R;
+        let targetX_L = 0.0;
+        let targetX_R = 0.0;
+        let targetElbow_L = THREE.MathUtils.degToRad(14.0);
+        let targetElbow_R = THREE.MathUtils.degToRad(-14.0);
+        let headTiltX = 0.0;
+        let headTiltZ = this.personality.headTiltBias;
+
+        // Si está volando, los brazos se extienden para mantener balance
+        if (this.flightState === 'HOVER_GLIDE' || this.flightState === 'ASCENT') {
+          targetZ_L = THREE.MathUtils.degToRad(48.0 + Math.sin(this.t * 1.8) * 4.0);
+          targetZ_R = THREE.MathUtils.degToRad(-48.0 - Math.sin(this.t * 1.8) * 4.0);
+          targetElbow_L = THREE.MathUtils.degToRad(24.0);
+          targetElbow_R = THREE.MathUtils.degToRad(-24.0);
+        }
+
+        // A) Gesto conversacional prioritario (por voz o comando)
+        if (this.activeGesture && !isSleep) {
+          this.gestureTimer += dt;
+          const prog = this.gestureTimer / (this.gestureDuration || 1.0);
+          const env = Math.sin(Math.min(1.0, prog) * Math.PI) * this.gestureIntensity * this.personality.expressiveness;
+
+          if (this.activeGesture === 'WAVE_HELLO') {
+            targetZ_R = THREE.MathUtils.degToRad(-25.0 * env - 72.0 * (1 - env));
+            targetX_R = THREE.MathUtils.degToRad(-35.0 * env);
+            targetElbow_R = THREE.MathUtils.degToRad((-95.0 + Math.sin(this.t * 9.0) * 22.0) * env - 14.0 * (1 - env));
+            headTiltZ = THREE.MathUtils.degToRad(-6.0 * env);
+          } else if (this.activeGesture === 'EXPLAIN') {
+            const wave = Math.sin(this.t * 4.0) * 12.0;
+            targetZ_R = THREE.MathUtils.degToRad((-48.0 + wave) * env - 72.0 * (1 - env));
+            targetX_R = THREE.MathUtils.degToRad(-32.0 * env);
+            targetElbow_R = THREE.MathUtils.degToRad(-45.0 * env);
+            headTiltX = THREE.MathUtils.degToRad(8.0 * env);
+          } else if (this.activeGesture === 'THINKING') {
+            targetZ_R = THREE.MathUtils.degToRad(-35.0 * env - 72.0 * (1 - env));
+            targetX_R = THREE.MathUtils.degToRad(-25.0 * env);
+            targetElbow_R = THREE.MathUtils.degToRad(-110.0 * env);
+            headTiltX = THREE.MathUtils.degToRad(-12.0 * env);
+            headTiltZ = THREE.MathUtils.degToRad(14.0 * env);
+          } else if (this.activeGesture === 'NOD_AGREE') {
+            headTiltX = THREE.MathUtils.degToRad(Math.sin(this.t * 8.0) * 16.0 * env);
+          } else if (this.activeGesture === 'HEAD_SHAKE') {
+            headTiltZ = THREE.MathUtils.degToRad(Math.sin(this.t * 9.0) * 18.0 * env);
+          } else if (this.activeGesture === 'PRESENT') {
+            targetZ_R = THREE.MathUtils.degToRad(-40.0 * env - 72.0 * (1 - env));
+            targetX_R = THREE.MathUtils.degToRad(-45.0 * env);
+            targetElbow_R = THREE.MathUtils.degToRad(-25.0 * env);
+            headTiltZ = THREE.MathUtils.degToRad(-8.0 * env);
+          } else if (this.activeGesture === 'SHY_FIDGET') {
+            targetZ_R = THREE.MathUtils.degToRad(-55.0 * env - 72.0 * (1 - env));
+            targetElbow_R = THREE.MathUtils.degToRad((-50.0 + Math.sin(this.t * 7.0) * 8.0) * env);
+            headTiltX = THREE.MathUtils.degToRad(12.0 * env);
+            headTiltZ = THREE.MathUtils.degToRad(10.0 * env);
+          } else if (this.activeGesture === 'CELEBRATE') {
+            targetZ_R = THREE.MathUtils.degToRad(-25.0 * env - 72.0 * (1 - env));
+            targetZ_L = THREE.MathUtils.degToRad(25.0 * env + 72.0 * (1 - env));
+            targetElbow_R = THREE.MathUtils.degToRad(-85.0 * env);
+            targetElbow_L = THREE.MathUtils.degToRad(85.0 * env);
+            headTiltX = THREE.MathUtils.degToRad(-10.0 * env);
+          } else if (this.activeGesture === 'CONFUSED_TILT') {
+            headTiltZ = THREE.MathUtils.degToRad(16.0 * env);
+            targetElbow_R = THREE.MathUtils.degToRad(-35.0 * env);
+          }
+
+          if (this.gestureTimer >= this.gestureDuration) {
+            this.activeGesture = null;
+          }
+        }
+        // B) Animaciones de Personalidad Idle (cuando no hay gesto de habla)
+        else if (this.activeIdleBehavior && !isSleep && this.locomotionState === 'STOPPED' && this.flightState === 'GROUNDED') {
+          this.idleTimer += dt;
+          const prog = Math.min(1.0, this.idleTimer / (this.idleDuration || 1.0));
+          const env = Math.sin(prog * Math.PI) * this.personality.expressiveness;
+
+          switch (this.activeIdleBehavior) {
+            case 'HAIR_TUCK':
+              targetZ_R = THREE.MathUtils.degToRad((-32.0 - 14.0 * Math.sin(this.t * 3.0)) * env - 72.0 * (1 - env));
+              targetX_R = THREE.MathUtils.degToRad(-38.0 * env);
+              targetElbow_R = THREE.MathUtils.degToRad(-118.0 * env - 14.0 * (1 - env));
+              headTiltZ = THREE.MathUtils.degToRad(-8.0 * env);
+              headTiltX = THREE.MathUtils.degToRad(6.0 * env);
+              break;
+
+            case 'ARMS_CROSSED':
+              targetZ_L = THREE.MathUtils.degToRad(36.0 * env + 72.0 * (1 - env));
+              targetZ_R = THREE.MathUtils.degToRad(-36.0 * env - 72.0 * (1 - env));
+              targetX_L = THREE.MathUtils.degToRad(-28.0 * env);
+              targetX_R = THREE.MathUtils.degToRad(-26.0 * env);
+              targetElbow_L = THREE.MathUtils.degToRad(86.0 * env);
+              targetElbow_R = THREE.MathUtils.degToRad(-86.0 * env);
+              headTiltZ = THREE.MathUtils.degToRad(6.0 * env);
+              break;
+
+            case 'HAND_TO_CHIN':
+              targetZ_R = THREE.MathUtils.degToRad(-38.0 * env - 72.0 * (1 - env));
+              targetX_R = THREE.MathUtils.degToRad(-26.0 * env);
+              targetElbow_R = THREE.MathUtils.degToRad(-108.0 * env);
+              headTiltX = THREE.MathUtils.degToRad(-10.0 * env);
+              headTiltZ = THREE.MathUtils.degToRad(12.0 * env);
+              break;
+
+            case 'HEAD_TILT_CURIOSITY':
+              headTiltZ = THREE.MathUtils.degToRad(16.0 * env);
+              headTiltX = THREE.MathUtils.degToRad(6.0 * env);
+              targetElbow_R = THREE.MathUtils.degToRad(-28.0 * env);
+              break;
+
+            case 'LOOK_AROUND_ROOM':
+              const panWave = Math.sin(this.t * 1.6);
+              headTiltZ = THREE.MathUtils.degToRad(panWave * 18.0 * env);
+              headTiltX = THREE.MathUtils.degToRad(-8.0 * env);
+              break;
+
+            case 'GENTLE_STRETCH':
+              targetZ_L = THREE.MathUtils.degToRad(50.0 * env + 72.0 * (1 - env));
+              targetZ_R = THREE.MathUtils.degToRad(-50.0 * env - 72.0 * (1 - env));
+              targetX_L = THREE.MathUtils.degToRad(16.0 * env);
+              targetX_R = THREE.MathUtils.degToRad(16.0 * env);
+              targetElbow_L = THREE.MathUtils.degToRad(22.0 * env);
+              targetElbow_R = THREE.MathUtils.degToRad(-22.0 * env);
+              headTiltX = THREE.MathUtils.degToRad(-14.0 * env);
+              break;
+
+            case 'HANDS_BEHIND_BACK':
+              targetZ_L = THREE.MathUtils.degToRad(64.0 * env + 72.0 * (1 - env));
+              targetZ_R = THREE.MathUtils.degToRad(-64.0 * env - 72.0 * (1 - env));
+              targetX_L = THREE.MathUtils.degToRad(24.0 * env);
+              targetX_R = THREE.MathUtils.degToRad(24.0 * env);
+              targetElbow_L = THREE.MathUtils.degToRad(32.0 * env);
+              targetElbow_R = THREE.MathUtils.degToRad(-32.0 * env);
+              headTiltX = THREE.MathUtils.degToRad(8.0 * env);
+              break;
+
+            case 'LOOK_DOWN_SHY':
+              headTiltX = THREE.MathUtils.degToRad(16.0 * env);
+              headTiltZ = THREE.MathUtils.degToRad(-6.0 * env);
+              targetZ_R = THREE.MathUtils.degToRad(-60.0 * env - 72.0 * (1 - env));
+              targetZ_L = THREE.MathUtils.degToRad(60.0 * env + 72.0 * (1 - env));
+              break;
+
+            case 'SHY_FIDGET':
+              targetZ_L = THREE.MathUtils.degToRad(42.0 * env + 72.0 * (1 - env));
+              targetZ_R = THREE.MathUtils.degToRad(-42.0 * env - 72.0 * (1 - env));
+              targetX_L = THREE.MathUtils.degToRad(-32.0 * env);
+              targetX_R = THREE.MathUtils.degToRad(-32.0 * env);
+              targetElbow_L = THREE.MathUtils.degToRad((54.0 + Math.sin(this.t * 7.0) * 8.0) * env);
+              targetElbow_R = THREE.MathUtils.degToRad((-54.0 - Math.sin(this.t * 7.0) * 8.0) * env);
+              headTiltX = THREE.MathUtils.degToRad(10.0 * env);
+              break;
+
+            case 'LITTLE_HOP_JOY':
+              headTiltX = THREE.MathUtils.degToRad(-10.0 * env);
+              targetElbow_R = THREE.MathUtils.degToRad(-45.0 * env);
+              targetElbow_L = THREE.MathUtils.degToRad(45.0 * env);
+              break;
+
+            case 'YAWN_SLEEPY':
+              targetZ_R = THREE.MathUtils.degToRad(-36.0 * env - 72.0 * (1 - env));
+              targetX_R = THREE.MathUtils.degToRad(-32.0 * env);
+              targetElbow_R = THREE.MathUtils.degToRad(-105.0 * env);
+              headTiltX = THREE.MathUtils.degToRad(-12.0 * env);
+              break;
+
+            case 'INSPECT_HANDS':
+              targetZ_L = THREE.MathUtils.degToRad(40.0 * env + 72.0 * (1 - env));
+              targetX_L = THREE.MathUtils.degToRad(-35.0 * env);
+              targetElbow_L = THREE.MathUtils.degToRad(78.0 * env);
+              headTiltX = THREE.MathUtils.degToRad(16.0 * env);
+              headTiltZ = THREE.MathUtils.degToRad(-6.0 * env);
+              break;
+
+            case 'WARM_SMILE':
+              headTiltZ = THREE.MathUtils.degToRad(6.0 * env);
+              headTiltX = THREE.MathUtils.degToRad(-4.0 * env);
+              break;
+
+            case 'GENTLE_SWAY':
+              headTiltZ = THREE.MathUtils.degToRad(Math.sin(this.t * 2.0) * 10.0 * env);
+              break;
+          }
+
+          if (this.idleTimer >= this.idleDuration) {
+            this.activeIdleBehavior = null;
+          }
+        }
+
+        // C) Balanceo de brazos durante locomoción — contralateral profesional
+        const _wb = this._walkBlend || 0.0;
+        if (_wb > 0.01 && !this.activeGesture) {
+          // Contralateral: brazo izq va adelante cuando pierna der avanza (walkSwing > 0)
+          const armSwingAmplitude = 14.0; // grados — contenido para no parecer robot
+          const walkS = Math.sin(this.walkCycle);
+          // Brazo izquierdo: fase opuesta a la pierna izquierda
+          const swingL =  walkS * armSwingAmplitude * _wb;
+          // Brazo derecho: en fase con pierna izquierda (contralateral)
+          const swingR = -walkS * armSwingAmplitude * _wb;
+
+          // X: balancea adelante/atrás — Z: permanece en base drapeada
+          targetX_L = THREE.MathUtils.degToRad(swingL);
+          targetX_R = THREE.MathUtils.degToRad(swingR);
+
+          // Codo: se dobla ligeramente al llevar el brazo hacia atrás
+          const elbowFlexL = THREE.MathUtils.degToRad(14.0 + Math.max(0.0, -walkS) * 10.0 * _wb);
+          const elbowFlexR = THREE.MathUtils.degToRad(-14.0 - Math.max(0.0,  walkS) * 10.0 * _wb);
+          targetElbow_L = elbowFlexL;
+          targetElbow_R = elbowFlexR;
+
+          // Leve inclinación de cabeza hacia el lado de avance
+          headTiltZ = THREE.MathUtils.degToRad(-walkS * 2.5 * _wb);
+        }
+
+        // D) Micro-gesticulación mientras habla
+        if (this.speaking && !this.activeGesture && !isSleep) {
+          const speakMod = Math.sin(this.t * 3.5) * 14.0 * this.personality.energy;
+          targetZ_R = THREE.MathUtils.degToRad(-62.0 + speakMod);
+          targetElbow_R = THREE.MathUtils.degToRad(-28.0 - speakMod * 0.5);
+          headTiltX += THREE.MathUtils.degToRad(Math.sin(this.t * 6.0) * 3.5);
+        }
+
+        // Interpolación física suave a las articulaciones (cero saltos bruscos)
+        const lerpSpeed = Math.min(1.0, dt * 5.5);
+        if (rightArm) {
+          rightArm.rotation.z += (targetZ_R - rightArm.rotation.z) * lerpSpeed;
+          rightArm.rotation.x += (targetX_R - rightArm.rotation.x) * lerpSpeed;
+        }
+        if (leftArm) {
+          leftArm.rotation.z += (targetZ_L - leftArm.rotation.z) * lerpSpeed;
+          leftArm.rotation.x += (targetX_L - leftArm.rotation.x) * lerpSpeed;
+        }
+        if (rightElbow) {
+          rightElbow.rotation.z += (targetElbow_R - rightElbow.rotation.z) * lerpSpeed;
+        }
+        if (leftElbow) {
+          leftElbow.rotation.z += (targetElbow_L - leftElbow.rotation.z) * lerpSpeed;
+        }
+        if (head) {
+          head.rotation.x += (headTiltX - head.rotation.x) * lerpSpeed;
+          head.rotation.z += (headTiltZ - head.rotation.z) * lerpSpeed;
+        }
+      }
+
+      // ── 8. EXPRESIONES FACIALES, PARPADEO ESTOCÁSTICO Y LIP-SYNC ───────────
+      updateExpressions(dt, isSleep) {
+        const mgr = this.currentVrm.expressionManager;
+        if (!mgr) return;
+
+        // Reset
+        const allExpressions = ['happy', 'sad', 'angry', 'surprised', 'relaxed', 'aa', 'ih', 'ou', 'ee', 'oh', 'blink'];
+        for (const exp of allExpressions) {
+          mgr.setValue(exp, 0.0);
+        }
+
+        // Parpadeo estocástico natural (con doble parpadeo aleatorio)
+        if (isSleep) {
+          mgr.setValue('blink', 1.0);
+        } else {
+          this.blinkTimer += dt;
+          if (this.blinkTimer >= this.nextBlink) {
+            this.isBlinking = true;
+            this.blinkTimer = 0.0;
+            this.blinkProgress = 0.0;
+            this.isDoubleBlink = (Math.random() < 0.22); // 22% probabilidad de parpadeo doble
+            this.nextBlink = 2.4 + Math.random() * 3.6;
+          }
+
+          if (this.isBlinking) {
+            this.blinkProgress += dt * 6.5;
+            let blinkAmount = Math.sin(Math.min(1.0, this.blinkProgress) * Math.PI);
+            if (this.isDoubleBlink && this.blinkProgress >= 1.0 && this.blinkProgress < 2.0) {
+              blinkAmount = Math.sin((this.blinkProgress - 1.0) * Math.PI);
+            }
+            mgr.setValue('blink', Math.max(0.0, blinkAmount));
+
+            if ((this.isDoubleBlink ? this.blinkProgress >= 2.0 : this.blinkProgress >= 1.0)) {
+              this.isBlinking = false;
+              mgr.setValue('blink', 0.0);
+            }
+          }
+        }
+
+        // Lip-sync analógico en tiempo real
+        if (this.speaking && !isSleep && this.smoothedAmp > 0.02) {
+          const mouthOpen = Math.min(1.0, this.smoothedAmp * 1.85);
+          mgr.setValue('aa', mouthOpen);
+        }
+
+        // Expresión emocional activa
+        if (this.currentEmotion && this.currentEmotion !== 'neutral') {
+          const emoMap = {
+            'happy': 'happy',
+            'joy': 'happy',
+            'sad': 'sad',
+            'angry': 'angry',
+            'surprised': 'surprised',
+            'relaxed': 'relaxed',
+            'curious': 'surprised'
+          };
+          const targetExp = emoMap[this.currentEmotion] || 'happy';
+          mgr.setValue(targetExp, this.emotionIntensity);
+
+          if (this.emotionDuration > 0.0) {
+            this.emotionTimer += dt;
+            if (this.emotionTimer >= this.emotionDuration) {
+              this.currentEmotion = 'neutral';
+            }
+          }
+        }
+
+        // Expresión complementaria de animación idle
+        if (this.activeIdleBehavior && !isSleep) {
+          const prog = Math.min(1.0, this.idleTimer / (this.idleDuration || 1.0));
+          const env = Math.sin(prog * Math.PI);
+          if (this.activeIdleBehavior === 'HAIR_TUCK' || this.activeIdleBehavior === 'WARM_SMILE' || this.activeIdleBehavior === 'LITTLE_HOP_JOY') {
+            mgr.setValue('happy', Math.max(mgr.getValue('happy') || 0.0, 0.75 * env));
+          } else if (this.activeIdleBehavior === 'HEAD_TILT_CURIOSITY' || this.activeIdleBehavior === 'INSPECT_HANDS') {
+            mgr.setValue('surprised', Math.max(mgr.getValue('surprised') || 0.0, 0.35 * env));
+          } else if (this.activeIdleBehavior === 'GENTLE_STRETCH' || this.activeIdleBehavior === 'DEEP_BREATHE') {
+            mgr.setValue('relaxed', Math.max(mgr.getValue('relaxed') || 0.0, 0.70 * env));
+          }
+        }
+
+        mgr.update();
+      }
+
+      // ── 9. SEGUIMIENTO OCULAR Y MIRADA (LOOKAT) ────────────────────────────
+      updateGazeLookAt(dt, isSleep) {
+        if (!this.currentVrm.lookAt) return;
+
+        if (isSleep) {
+          this.gazeCurrent.set(0, 1.25, 1.0);
+        } else if (this.speechAttentionTimer > 0.0) {
+          // Orientar mirada directamente hacia la cámara (usuario)
+          this.gazeTarget.set(this.camera.position.x, this.camera.position.y - 0.2, this.camera.position.z);
+          this.gazeCurrent.lerp(this.gazeTarget, Math.min(1.0, dt * 4.0));
+        } else {
+          // Micro-movimientos sacádicos explorando la habitación
+          this.saccadeTimer += dt;
+          if (this.saccadeTimer >= this.saccadeInterval) {
+            this.saccadeTimer = 0.0;
+            this.saccadeInterval = 2.2 + Math.random() * 3.2;
+            const rx = this.modelPosition.x + (Math.random() - 0.5) * 1.2;
+            const ry = 1.35 + (Math.random() - 0.5) * 0.4;
+            const rz = 1.4 + (Math.random() - 0.5) * 0.8;
+            this.gazeTarget.set(rx, ry, rz);
+          }
+          this.gazeCurrent.lerp(this.gazeTarget, Math.min(1.0, dt * 2.5));
+        }
+
+        this.currentVrm.lookAt.lookAt(this.gazeCurrent);
+      }
+
+      // ── API EXTERNA DE CONTROL (COMPATIBILIDAD CON LIVE2DWIDGET Y PYTHON) ───
+      setSpeaking(isSpeaking) {
+        this.speaking = Boolean(isSpeaking);
+        if (this.speaking) {
+          this.speechAttentionTimer = 6.0;
+        }
+      }
+
+      setAmplitude(amp) {
+        this.amplitude = Math.max(0.0, Math.min(1.0, amp));
+      }
+
+      setState(newState) {
+        const prev = this.state;
+        this.state = String(newState || 'IDLE').toUpperCase();
+        if (this.state === 'SPEAKING' || this.state === 'LISTENING') {
+          this.speechAttentionTimer = 6.0;
+        }
+        if (prev === 'SLEEPING' && this.state !== 'SLEEPING') {
+          this.setEmotion('happy', 0.8, 2.5);
+        }
+      }
+
+      glance(dx, dy) {
+        this.gazeTarget.set(
+          this.modelPosition.x + Number(dx || 0.0) * 1.2,
+          1.45 + Number(dy || 0.0) * 0.6,
+          1.8
+        );
+      }
+
+      setEmotion(name, intensity = 1.0, duration = 0.0) {
+        this.currentEmotion = String(name || 'neutral').toLowerCase();
+        this.emotionIntensity = Math.max(0.0, Math.min(1.0, intensity));
+        this.emotionDuration = duration;
+        this.emotionTimer = 0.0;
+      }
+
+      triggerGesture(name, duration = 3.5, intensity = 1.0) {
+        this.activeGesture = String(name || '').toUpperCase();
+        this.gestureDuration = duration;
+        this.gestureTimer = 0.0;
+        this.gestureIntensity = Math.max(0.2, Math.min(1.5, intensity));
+      }
+
+      setSemanticIntent(intent, metadata) {
+        if (!intent) return;
+        const norm = String(intent).toLowerCase();
+        const map = {
+          'explain': { gesture: 'EXPLAIN', emotion: 'relaxed', duration: 3.5 },
+          'emphasize': { gesture: 'EXPLAIN', emotion: 'relaxed', duration: 3.0 },
+          'present': { gesture: 'PRESENT', emotion: 'happy', duration: 3.8 },
+          'confirm': { gesture: 'NOD_AGREE', emotion: 'happy', duration: 2.8 },
+          'agree': { gesture: 'NOD_AGREE', emotion: 'happy', duration: 2.8 },
+          'warn': { gesture: 'HEAD_SHAKE', emotion: 'angry', duration: 3.0 },
+          'disagree': { gesture: 'HEAD_SHAKE', emotion: 'confused', duration: 3.0 },
+          'apologize': { gesture: 'SHY_FIDGET', emotion: 'sad', duration: 3.2 },
+          'discover': { gesture: 'NOD_AGREE', emotion: 'surprised', duration: 3.0 },
+          'greet': { gesture: 'WAVE_HELLO', emotion: 'happy', duration: 3.5 },
+          'greeting': { gesture: 'WAVE_HELLO', emotion: 'happy', duration: 3.5 },
+          'farewell': { gesture: 'WAVE_HELLO', emotion: 'relaxed', duration: 3.5 },
+          'thinking': { gesture: 'THINKING', emotion: 'relaxed', duration: 3.5 },
+          'shy': { gesture: 'SHY_FIDGET', emotion: 'shy', duration: 3.2 },
+          'confused': { gesture: 'CONFUSED_TILT', emotion: 'confused', duration: 3.0 }
+        };
+        const config = map[norm] || { gesture: norm.toUpperCase(), emotion: 'relaxed', duration: 3.5 };
+        if (config.emotion) this.setEmotion(config.emotion, 0.85, config.duration);
+        this.triggerGesture(config.gesture, config.duration, 1.0);
+      }
+
+      setPersonalityParams(params) {
+        if (!params) return;
+        if (params.energy !== undefined) this.personality.energy = Number(params.energy);
+        if (params.expressiveness !== undefined) this.personality.expressiveness = Number(params.expressiveness);
+        if (params.fidgetFrequency !== undefined) this.personality.fidgetFrequency = Number(params.fidgetFrequency);
+        if (params.headTiltBias !== undefined) this.personality.headTiltBias = Number(params.headTiltBias);
+        if (params.curiosityLevel !== undefined) this.personality.curiosityLevel = Number(params.curiosityLevel);
+      }
+
+      applyCameraFraming(preset = this.cameraPreset) {
+        if (!this.camera) return;
+        this.cameraPreset = preset;
+
+        let modelHeight = 1.62;
+        let modelWidth = 0.80;
+        let minY = 0.0;
+        let centerY = 0.82;
+
+        if (this.currentVrm && this.currentVrm.scene) {
+          try {
+            const prevRotY = this.currentVrm.scene.rotation.y;
+            const prevPosX = this.currentVrm.scene.position.x;
+            const prevPosZ = this.currentVrm.scene.position.z;
+            this.currentVrm.scene.position.set(0, 0, 0);
+            this.currentVrm.scene.rotation.y = this.baseOrientation || 0.0;
+            this.currentVrm.scene.updateMatrixWorld(true);
+
+            const box = new THREE.Box3().setFromObject(this.currentVrm.scene);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+
+            if (size.y > 0.5 && isFinite(size.y)) {
+              modelHeight = size.y;
+              modelWidth = Math.max(0.65, size.x);
+              minY = box.min.y;
+              centerY = box.min.y + size.y * 0.50;
+            }
+
+            this.currentVrm.scene.position.set(prevPosX, (this.flightState === 'GROUNDED' ? 0 : this.flightAltitude), prevPosZ);
+            this.currentVrm.scene.rotation.y = prevRotY;
+          } catch (e) {
+            console.warn("[VRM 3D] Error midiendo bounding box:", e);
+          }
+        }
+
+        const fovRad = THREE.MathUtils.degToRad(this.camera.fov);
+        const aspect = Math.max(0.2, this.camera.aspect || 1.0);
+
+        let targetFrustumHeight = modelHeight * 1.25; // 25% de holgura para que quepan holgadamente coletas altas y zapatos
+        let targetLookY = minY + modelHeight * 0.48;
+
+        if (preset === 'upper') {
+          targetFrustumHeight = modelHeight * 0.68;
+          targetLookY = minY + modelHeight * 0.68;
+        } else if (preset === 'portrait') {
+          targetFrustumHeight = modelHeight * 0.42;
+          targetLookY = minY + modelHeight * 0.82;
+        }
+
+        // Distancia para encuadrar altura total
+        const distV = (targetFrustumHeight / 2.0) / Math.tan(fovRad / 2.0);
+
+        // Distancia para encuadrar anchura total (coletas o alas)
+        const tanHorizFov = Math.tan(fovRad / 2.0) * aspect;
+        const distH = (modelWidth * 1.15 / 2.0) / tanHorizFov;
+
+        this.targetCameraDist = Math.max(distV, distH, 3.20);
+        this.targetCameraY = targetLookY + (preset === 'full' ? 0.05 : 0.0);
+        this.cameraLookY = targetLookY;
+
+        this.camera.position.set(0.0, this.targetCameraY, this.targetCameraDist);
+        this.camera.lookAt(0.0, this.cameraLookY, 0.0);
+        this.camera.updateProjectionMatrix();
+      }
+
+      setCameraPreset(preset) {
+        this.cameraPreset = preset;
+        this.applyCameraFraming(preset);
+      }
+
+      setFloatMode(isFloating) {
+        if (isFloating) {
+          this.initiateFlightSequence();
+        } else {
+          this.cancelFlightAndLand();
+        }
+      }
+
+      getStatus() {
+        return {
+          state: this.state,
+          emotion: this.currentEmotion,
+          emotionIntensity: this.emotionIntensity,
+          gesture: this.activeGesture || 'NINGUNO',
+          idleBehavior: this.activeIdleBehavior || 'DESCANSO',
+          locomotion: this.locomotionState,
+          flight: this.flightState,
+          fps: this.currentFps,
+          isLoaded: this.isLoaded,
+          bonesCount: Object.keys(this.bones).length
+        };
+      }
+
+      updateDebugHud() {
+        if (!this.debugHud) return;
+        const st = this.getStatus();
+        document.getElementById('hud-status').innerText = `FPS: ${st.fps} | Estado: ${st.state} | Huesos: ${st.bonesCount}`;
+        document.getElementById('hud-behavior').innerText = `Comportamiento: ${st.idleBehavior}`;
+        document.getElementById('hud-locomotion').innerText = `Locomoción: ${st.locomotion}`;
+        document.getElementById('hud-flight').innerText = `Vuelo: ${st.flight}`;
+        document.getElementById('hud-emotion').innerText = `Emoción: ${st.emotion} (${(st.emotionIntensity * 100).toFixed(0)}%)`;
+        document.getElementById('hud-gesture').innerText = `Gesto: ${st.gesture}`;
+      }
+    }
+
+    // Instancia Global para acceso desde Qt WebEngine
+    try {
+      window.vrmApp = new EdithVRMApp();
+      console.log("[VRM 3D] EdithVRMApp inicializada con éxito.");
+    } catch (e) {
+      console.error("[VRM 3D] Error fatal instanciando EdithVRMApp:", e);
+      window.INIT_ERROR = (e.message || String(e)) + ' | ' + (e.stack || '');
+      const el = document.getElementById('loading-text');
+      if (el) el.innerText = "Error de inicialización: " + (e.message || e);
+    }
+  </script>
+</body>
+</html>

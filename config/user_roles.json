@@ -1,0 +1,14 @@
+{
+    "Jesús": {
+        "role": "CREATOR",
+        "is_creator": true,
+        "voice_enrolled": true,
+        "notes": "Primary Creator & Root Administrator"
+    },
+    "Invitado": {
+        "role": "GUEST",
+        "is_creator": false,
+        "voice_enrolled": false,
+        "notes": "Default guest profile for unrecognized voices"
+    }
+}

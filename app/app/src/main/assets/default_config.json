@@ -1,0 +1,12 @@
+{
+  "gemini_api_key": "",
+  "assistant_name": "Viernes",
+  "user_name": "",
+  "tts_engine": "gemini",
+  "voice_name": "Aoede",
+  "voice_style": "natural",
+  "elevenlabs_api_key": "",
+  "elevenlabs_voice_id": "VmejBeYhbrcTPwDniox7",
+  "pc_server_url": "",
+  "pc_access_key": ""
+}

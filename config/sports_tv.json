@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "source_url": "https://futbolenvivo.top",
+  "sports_routing": "sports_web",
+  "adblock_enabled": true,
+  "block_popups": true,
+  "isolate_player": true,
+  "autoplay": true,
+  "extra_blocked_hosts": "rtxt.org",
+  "extra_filter_lists": "",
+  "index_ttl_hours": 6,
+  "lists_ttl_days": 3
+}

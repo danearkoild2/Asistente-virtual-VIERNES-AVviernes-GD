@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VIERNES Mobile Avatar</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #060a12;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  #scene {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Fondo Penthouse Ejecutivo con parallax sutil */
+  #room-bg {
+    position: absolute;
+    inset: -4%;
+    width: 108%;
+    height: 108%;
+    object-fit: cover;
+    filter: brightness(0.78) contrast(1.06) saturate(1.1);
+    transition: filter 0.6s ease, transform 0.8s ease;
+    z-index: 1;
+  }
+  body.sleeping #room-bg {
+    filter: brightness(0.32) contrast(1.1) saturate(0.75) blur(1px);
+  }
+
+  /* Viñeta cinemática + gradiente inferior para integrar con el HUD de Android */
+  #vignette {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(16,185,129,0.06) 0%, rgba(6,10,18,0.45) 70%, rgba(6,10,18,0.88) 100%),
+      linear-gradient(180deg, rgba(6,10,18,0.55) 0%, transparent 24%, transparent 68%, rgba(6,10,18,0.96) 100%);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* Halo reactivo detrás del avatar */
+  #aura {
+    position: absolute;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(16,185,129,0.28) 0%, rgba(6,182,212,0.08) 55%, transparent 75%);
+    filter: blur(20px);
+    z-index: 3;
+    transition: transform 0.15s ease, opacity 0.4s ease, background 0.4s ease;
+    pointer-events: none;
+  }
+  body.speaking #aura {
+    background: radial-gradient(circle, rgba(16,185,129,0.48) 0%, rgba(6,182,212,0.22) 55%, transparent 78%);
+  }
+  body.thinking #aura {
+    background: radial-gradient(circle, rgba(245,158,11,0.38) 0%, rgba(217,119,6,0.15) 55%, transparent 78%);
+  }
+  body.sleeping #aura {
+    opacity: 0.12;
+  }
+
+  /* Contenedor del personaje con respiración suave */
+  #avatar-wrap {
+    position: relative;
+    z-index: 4;
+    height: 94%;
+    max-width: 96%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    transform-origin: center bottom;
+    animation: breathe 4.2s ease-in-out infinite;
+    cursor: pointer;
+  }
+  body.sleeping #avatar-wrap {
+    animation: breatheSleep 6s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%, 100% { transform: translateY(0px) scale(1.0); }
+    50% { transform: translateY(-5px) scale(1.008); }
+  }
+  @keyframes breatheSleep {
+    0%, 100% { transform: translateY(2px) scale(0.99); }
+    50% { transform: translateY(-2px) scale(0.996); }
+  }
+
+  #avatar-img {
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 14px 28px rgba(0,0,0,0.68));
+    transition: filter 0.4s ease;
+  }
+  body.sleeping #avatar-img {
+    filter: brightness(0.68) saturate(0.85) drop-shadow(0 14px 28px rgba(0,0,0,0.85));
+  }
+
+  /* Luciérnaga dorada (Modo Reposo / Dormida) */
+  #firefly-container {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  body.sleeping #firefly-container {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #firefly {
+    position: absolute;
+    left: 52%;
+    top: 40%;
+    width: 56px;
+    height: 56px;
+    margin-left: -28px;
+    margin-top: -28px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: floatFirefly 6.5s ease-in-out infinite;
+  }
+  #firefly-core {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #fef08a;
+    box-shadow:
+      0 0 12px 4px rgba(250, 204, 21, 0.95),
+      0 0 28px 10px rgba(245, 158, 11, 0.65),
+      0 0 48px 18px rgba(16, 185, 129, 0.35);
+    animation: pulseFirefly 1.8s ease-in-out infinite;
+  }
+  #sleep-hint {
+    position: absolute;
+    bottom: 18%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 16, 28, 0.82);
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    color: #fef08a;
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+    white-space: nowrap;
+  }
+
+  @keyframes floatFirefly {
+    0%, 100% { transform: translate(0px, 0px); }
+    25% { transform: translate(42px, -32px); }
+    50% { transform: translate(-36px, -50px); }
+    75% { transform: translate(-48px, 18px); }
+  }
+  @keyframes pulseFirefly {
+    0%, 100% { transform: scale(0.9); opacity: 0.82; }
+    50% { transform: scale(1.25); opacity: 1; }
+  }
+
+  /* Ondas de voz inferiores */
+  #voice-bars {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 26px;
+    pointer-events: none;
+  }
+  .vbar {
+    width: 4px;
+    height: 4px;
+    border-radius: 99px;
+    background: linear-gradient(180deg, #34d399, #06b6d4);
+    box-shadow: 0 0 8px rgba(16,185,129,0.6);
+    transition: height 0.06s ease;
+  }
+  body.thinking .vbar {
+    background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  }
+  body.sleeping .vbar {
+    opacity: 0.15;
+  }
+</style>
+</head>
+<body class="listening">
+  <div id="scene">
+    <img id="room-bg" src="room_bg.jpg" alt="Penthouse">
+    <div id="vignette"></div>
+    <div id="aura"></div>
+
+    <div id="avatar-wrap" onclick="onCharacterTap()">
+      <img id="avatar-img" src="frames/idle.png" alt="VIERNES">
+    </div>
+
+    <div id="firefly-container" onclick="onFireflyTap(event)">
+      <div id="firefly">
+        <div id="firefly-core"></div>
+      </div>
+      <div id="sleep-hint">✨ Toca la luciérnaga para despertar a VIERNES</div>
+    </div>
+
+    <div id="voice-bars">
+      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+      <div class="vbar"></div><div class="vbar"></div><div class="vbar"></div>
+      <div class="vbar"></div><div class="vbar"></div>
+    </div>
+  </div>
+
+<script>
+  const avatarImg = document.getElementById('avatar-img');
+  const aura = document.getElementById('aura');
+  const roomBg = document.getElementById('room-bg');
+  const bars = Array.from(document.querySelectorAll('.vbar'));
+
+  let currentState = 'LISTENING'; // IDLE, LISTENING, THINKING, SPEAKING, SLEEPING
+  let mouthLevel = 0.0;
+  let tempReaction = null;
+  let reactionTimeout = null;
+  let isBlinking = false;
+  let blinkStage = 0;
+
+  // Precargar frames principales para transiciones instantáneas sin parpadeo
+  const frameNames = [
+    'idle', 'idle_smile', 'blink', 'blink_half',
+    'mouth_1', 'mouth_2', 'mouth_3',
+    'listening', 'listen_attentive', 'thinking',
+    'dormida', 'sleep', 'greeting_wave', 'happy_cheer',
+    'smile', 'curious', 'surprised', 'wink_left', 'wink_right', 'talk_smile'
+  ];
+  const preloaded = {};
+  frameNames.forEach(name => {
+    const img = new Image();
+    img.src = 'frames/' + name + '.png';
+    preloaded[name] = img.src;
+  });
+
+  function setFrame(name) {
+    const target = 'frames/' + name + '.png';
+    if (!avatarImg.src.endsWith(target)) {
+      avatarImg.src = target;
+    }
+  }
+
+  // Seleccionar fondo según hora del día
+  function updateRoomByHour() {
+    const h = new Date().getHours();
+    if (h >= 19 || h < 6) {
+      roomBg.src = 'room_bg_night.jpg';
+    } else if (h >= 17 && h < 19) {
+      roomBg.src = 'room_bg_sunset.jpg';
+    } else {
+      roomBg.src = 'room_bg.jpg';
+    }
+  }
+  updateRoomByHour();
+
+  // Parpadeo natural cada 2.8 - 5.2 segundos
+  function scheduleBlink() {
+    const delay = 2600 + Math.random() * 2600;
+    setTimeout(() => {
+      if (currentState !== 'SLEEPING' && mouthLevel < 0.08 && !tempReaction) {
+        isBlinking = true;
+        blinkStage = 1;
+        renderCurrentFrame();
+        setTimeout(() => {
+          blinkStage = 2;
+          renderCurrentFrame();
+          setTimeout(() => {
+            blinkStage = 1;
+            renderCurrentFrame();
+            setTimeout(() => {
+              isBlinking = false;
+              blinkStage = 0;
+              renderCurrentFrame();
+              scheduleBlink();
+            }, 55);
+          }, 90);
+        }, 50);
+      } else {
+        scheduleBlink();
+      }
+    }, delay);
+  }
+  scheduleBlink();
+
+  function renderCurrentFrame() {
+    if (currentState === 'SLEEPING') {
+      setFrame('dormida');
+      return;
+    }
+    if (tempReaction) {
+      setFrame(tempReaction);
+      return;
+    }
+    if (currentState === 'SPEAKING' || mouthLevel > 0.06) {
+      if (mouthLevel > 0.52) {
+        setFrame('mouth_3');
+      } else if (mouthLevel > 0.24) {
+        setFrame('mouth_2');
+      } else if (mouthLevel > 0.06) {
+        setFrame('mouth_1');
+      } else {
+        setFrame('idle_smile');
+      }
+      return;
+    }
+    if (isBlinking) {
+      setFrame(blinkStage === 2 ? 'blink' : 'blink_half');
+      return;
+    }
+    if (currentState === 'THINKING') {
+      setFrame('thinking');
+    } else if (currentState === 'LISTENING') {
+      setFrame('listening');
+    } else {
+      setFrame('idle_smile');
+    }
+  }
+
+  // Actualizar barras de audio y aura
+  function updateAudioVisuals(level) {
+    const scale = 1.0 + Math.min(0.45, level * 0.65);
+    aura.style.transform = `scale(${scale.toFixed(3)})`;
+    bars.forEach((bar, i) => {
+      const centerDist = Math.abs(i - 5) / 5;
+      const wave = Math.max(0.15, (1.0 - centerDist * 0.65) * level * (0.7 + Math.random() * 0.5));
+      const h = currentState === 'SLEEPING' ? 4 : Math.max(4, Math.min(26, Math.round(4 + wave * 24)));
+      bar.style.height = h + 'px';
+    });
+  }
+
+  // API llamada desde Kotlin (MainActivity)
+  window.setState = function(state) {
+    currentState = (state || 'IDLE').toUpperCase();
+    document.body.className = currentState.toLowerCase();
+    if (currentState !== 'SPEAKING') {
+      mouthLevel = 0.0;
+      updateAudioVisuals(0.0);
+    }
+    renderCurrentFrame();
+  };
+
+  window.setMouth = function(val) {
+    mouthLevel = Math.max(0.0, Math.min(1.0, Number(val) || 0.0));
+    updateAudioVisuals(mouthLevel);
+    renderCurrentFrame();
+  };
+
+  window.triggerExpression = function(exprName, durationMs) {
+    if (currentState === 'SLEEPING') return;
+    tempReaction = exprName || 'happy_cheer';
+    renderCurrentFrame();
+    if (reactionTimeout) clearTimeout(reactionTimeout);
+    reactionTimeout = setTimeout(() => {
+      tempReaction = null;
+      renderCurrentFrame();
+    }, durationMs || 1800);
+  };
+
+  function onCharacterTap() {
+    if (currentState === 'SLEEPING') {
+      onFireflyTap();
+      return;
+    }
+    const reactions = ['greeting_wave', 'happy_cheer', 'wink_left', 'smile', 'curious'];
+    const pick = reactions[Math.floor(Math.random() * reactions.length)];
+    window.triggerExpression(pick, 1600);
+    if (window.AndroidBridge && window.AndroidBridge.onAvatarTapped) {
+      window.AndroidBridge.onAvatarTapped(pick);
+    }
+  }
+
+  function onFireflyTap(e) {
+    if (e) e.stopPropagation();
+    window.setState('LISTENING');
+    window.triggerExpression('greeting_wave', 1800);
+    if (window.AndroidBridge && window.AndroidBridge.onWakeRequested) {
+      window.AndroidBridge.onWakeRequested();
+    }
+  }
+</script>
+</body>
+</html>

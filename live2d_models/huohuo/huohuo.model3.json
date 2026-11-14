@@ -1,0 +1,159 @@
+{
+  "Version": 3,
+  "FileReferences": {
+    "Moc": "huohuo.moc3",
+    "Textures": [
+      "huohuo.8192/texture_00.png",
+      "huohuo.8192/texture_01.png",
+      "huohuo.8192/texture_02.png",
+      "huohuo.8192/texture_03.png"
+    ],
+    "Physics": "huohuo.physics3.json",
+    "DisplayInfo": "huohuo.cdi3.json",
+    "Expressions": [
+      {
+        "Name": "angry",
+        "File": "angry.exp3.json"
+      },
+      {
+        "Name": "baozhen",
+        "File": "baozhen.exp3.json"
+      },
+      {
+        "Name": "cry",
+        "File": "cry.exp3.json"
+      },
+      {
+        "Name": "white_eyes",
+        "File": "white eyes.exp3.json"
+      },
+      {
+        "Name": "qizi1",
+        "File": "qizi1.exp3.json"
+      },
+      {
+        "Name": "qizi2",
+        "File": "qizi2.exp3.json"
+      }
+    ],
+    "Motions": {
+      "Idle": [
+        {
+          "File": "Scene1.motion3.json"
+        }
+      ],
+      "Scene1": [
+        {
+          "File": "Scene1.motion3.json"
+        }
+      ],
+      "celebrate": [
+        {
+          "File": "Scene1.motion3.json"
+        }
+      ],
+      "haoqi": [
+        {
+          "File": "haoqi.motion3.json"
+        }
+      ],
+      "curious": [
+        {
+          "File": "haoqi.motion3.json"
+        }
+      ],
+      "inspect": [
+        {
+          "File": "haoqi.motion3.json"
+        }
+      ],
+      "keshui": [
+        {
+          "File": "keshui.motion3.json"
+        }
+      ],
+      "sleepy": [
+        {
+          "File": "keshui.motion3.json"
+        }
+      ],
+      "linghun": [
+        {
+          "File": "linghun.motion3.json"
+        }
+      ],
+      "shock": [
+        {
+          "File": "linghun.motion3.json"
+        }
+      ],
+      "qizi": [
+        {
+          "File": "qizi.motion3.json"
+        }
+      ],
+      "combat": [
+        {
+          "File": "qizi.motion3.json"
+        }
+      ],
+      "yaotou": [
+        {
+          "File": "yaotou.motion3.json"
+        }
+      ],
+      "head_shake": [
+        {
+          "File": "yaotou.motion3.json"
+        }
+      ],
+      "zhentou": [
+        {
+          "File": "haoqi.motion3.json"
+        }
+      ],
+      "headpat": [
+        {
+          "File": "Scene1.motion3.json"
+        }
+      ],
+      "cheek_poke": [
+        {
+          "File": "yaotou.motion3.json"
+        }
+      ],
+      "doll_poke": [
+        {
+          "File": "haoqi.motion3.json"
+        }
+      ],
+      "stretch": [
+        {
+          "File": "keshui.motion3.json"
+        }
+      ],
+      "scratch": [
+        {
+          "File": "haoqi.motion3.json"
+        }
+      ],
+      "GREETING_WAVE": [
+        {
+          "File": "haoqi.motion3.json"
+        }
+      ]
+    }
+  },
+  "Groups": [
+    {
+      "Target": "Parameter",
+      "Name": "EyeBlink",
+      "Ids": []
+    },
+    {
+      "Target": "Parameter",
+      "Name": "LipSync",
+      "Ids": []
+    }
+  ]
+}

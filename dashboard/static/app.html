@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>VIERNES — Terminal Remoto</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <script src="/static/crypto.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg: #06080f;
+      --surface: rgba(13, 18, 30, 0.75);
+      --surface-elevated: rgba(19, 27, 46, 0.85);
+      --surface-border: rgba(255, 255, 255, 0.08);
+      --border-cyan: rgba(0, 229, 255, 0.22);
+      
+      --accent-cyan: #00e5ff;
+      --accent-blue: #0077ff;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #f43f5e;
+      --accent-purple: #8b5cf6;
+
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.09) 0%, transparent 50%),
+        radial-gradient(circle at 100% 100%, rgba(0, 119, 255, 0.06) 0%, transparent 40%);
+      color: var(--text-main);
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      flex-shrink: 0;
+      padding: calc(12px + var(--safe-top)) 16px 12px;
+      background: rgba(6, 8, 15, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--surface-border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-logo {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      background: linear-gradient(135deg, #ffffff 40%, var(--accent-cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--surface-border);
+      color: var(--text-dim);
+      transition: all 0.3s ease;
+    }
+    .status-badge.online {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: var(--accent-green);
+    }
+    .status-badge.sleeping {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.3);
+      color: var(--accent-amber);
+    }
+    .status-badge.offline {
+      background: rgba(244, 63, 94, 0.12);
+      border-color: rgba(244, 63, 94, 0.3);
+      color: var(--accent-red);
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .status-badge.online .status-dot {
+      animation: pulseDot 2s infinite ease-in-out;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .header-spacer { flex: 1; }
+
+    .enc-tag {
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.2);
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .host-tag {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-dim);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--surface-border);
+    }
+
+    /* ── TAB CONTENT CONTAINERS ── */
+    #tab-viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    .tab-pane {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .tab-pane.active {
+      display: flex;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── TAB 1: CHAT / TERMINAL ── */
+    #feed {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 8px;
+    }
+    .msg-wrap {
+      display: flex;
+      flex-direction: column;
+      max-width: 86%;
+      animation: popMsg 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes popMsg {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .msg-viernes {
+      align-self: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border-cyan);
+      border-radius: 18px;
+      border-bottom-left-radius: 4px;
+      padding: 12px 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    }
+    .msg-user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, rgba(0, 119, 255, 0.18) 0%, rgba(0, 229, 255, 0.12) 100%);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 18px;
+      border-bottom-right-radius: 4px;
+      padding: 12px 16px;
+      backdrop-filter: blur(16px);
+    }
+    .msg-sys {
+      align-self: center;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--surface-border);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .msg-viernes .msg-meta { color: var(--accent-cyan); }
+    .msg-user .msg-meta { color: var(--text-muted); }
+    .msg-text {
+      font-size: 14.5px;
+      line-height: 1.55;
+      color: var(--text-main);
+      word-break: break-word;
+      user-select: text;
+    }
+
+    /* Quick Chips */
+    .chip-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 0 10px;
+      scrollbar-width: none;
+    }
+    .chip-scroll::-webkit-scrollbar { display: none; }
+    .chip {
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--surface-border);
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .chip:active {
+      transform: scale(0.96);
+      background: rgba(0, 229, 255, 0.1);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    /* Chat Input Bar */
+    .chat-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      backdrop-filter: blur(20px);
+    }
+    #chat-inp {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 14px;
+    }
+    #chat-inp::placeholder { color: var(--text-dim); }
+
+    .bar-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid var(--surface-border);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.15s ease;
+    }
+    .bar-btn:active { transform: scale(0.92); }
+    .bar-btn.send-btn {
+      background: linear-gradient(135deg, #00e5ff 0%, #0077ff 100%);
+      border: none;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(0, 119, 255, 0.4);
+    }
+    .bar-btn.mic-btn.recording {
+      background: rgba(244, 63, 94, 0.18);
+      border-color: var(--accent-red);
+      color: var(--accent-red);
+      animation: micPulse 1.2s infinite ease-in-out;
+    }
+    @keyframes micPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(244, 63, 94, 0); }
+      50% { transform: scale(1.08); box-shadow: 0 0 16px rgba(244, 63, 94, 0.5); }
+    }
+
+    /* ── TAB 2: CONTROL PANEL ── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: -4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--surface-border);
+    }
+
+    /* Telemetry Grid */
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .tele-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 18px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    .tele-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--border-cyan), transparent);
+    }
+    .tele-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .tele-val {
+      font-size: 26px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-main);
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .tele-unit {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+    .meter-bar-wrap {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .meter-bar {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--accent-cyan);
+      transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s;
+    }
+
+    /* Master Volume Card */
+    .vol-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .vol-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .vol-label {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .vol-pct {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-cyan);
+    }
+    .vol-slider-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .vol-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      outline: none;
+      transition: background 0.2s;
+    }
+    .vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 2px solid var(--accent-cyan);
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .vol-slider::-webkit-slider-thumb:active {
+      transform: scale(1.15);
+    }
+    .vol-controls {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .vol-btn {
+      padding: 10px 4px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+    .vol-btn:active {
+      transform: scale(0.95);
+      background: rgba(0, 229, 255, 0.15);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+    .vol-btn.mute-active {
+      background: rgba(244, 63, 94, 0.18);
+      border-color: var(--accent-red);
+      color: var(--accent-red);
+    }
+
+    /* System Action Buttons */
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .sys-btn {
+      padding: 16px 14px;
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 16px;
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .sys-btn:active {
+      transform: scale(0.96);
+      border-color: var(--accent-cyan);
+      background: rgba(0, 229, 255, 0.06);
+    }
+    .sys-btn-icon {
+      font-size: 22px;
+    }
+    .sys-btn-title {
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .sys-btn-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    /* ── TAB 3: MULTIMEDIA ── */
+    .media-hero {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 24px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .art-frame {
+      width: 190px;
+      height: 190px;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 18px;
+      overflow: hidden;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 24px rgba(0, 229, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .art-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    .art-placeholder {
+      font-size: 54px;
+      opacity: 0.4;
+    }
+    .media-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      background: rgba(0, 229, 255, 0.1);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      margin-bottom: 12px;
+    }
+    .media-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 4px;
+      max-width: 90%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .media-artist {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+      max-width: 90%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .transport-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      width: 100%;
+    }
+    .t-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--surface-border);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .t-btn:active { transform: scale(0.9); }
+    .t-btn.play-btn {
+      width: 64px;
+      height: 64px;
+      font-size: 24px;
+      background: linear-gradient(135deg, #00e5ff 0%, #0077ff 100%);
+      border: none;
+      box-shadow: 0 8px 24px rgba(0, 119, 255, 0.4);
+    }
+
+    /* ── TAB 4: FILES & DATA ── */
+    .upload-zone {
+      border: 2px dashed rgba(0, 229, 255, 0.3);
+      background: rgba(0, 229, 255, 0.03);
+      border-radius: 20px;
+      padding: 28px 16px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .upload-zone:active {
+      background: rgba(0, 229, 255, 0.08);
+      border-color: var(--accent-cyan);
+    }
+    .upload-icon {
+      font-size: 36px;
+    }
+    .upload-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .upload-sub {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .file-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .fc-icon { font-size: 24px; flex-shrink: 0; }
+    .fc-info { flex: 1; min-width: 0; }
+    .fc-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fc-size { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .fc-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      color: var(--accent-cyan);
+      font-size: 11px;
+      font-weight: 700;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    /* ── BOTTOM TAB NAVIGATION ── */
+    nav {
+      flex-shrink: 0;
+      padding: 8px 14px calc(8px + var(--safe-bottom));
+      background: rgba(6, 8, 15, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid var(--surface-border);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      z-index: 100;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 8px 0;
+      border-radius: 12px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: transparent;
+      border: none;
+    }
+    .nav-item:active { transform: scale(0.94); }
+    .nav-icon { font-size: 18px; }
+    .nav-label { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+    .nav-item.active {
+      color: var(--accent-cyan);
+      background: rgba(0, 229, 255, 0.06);
+    }
+    .nav-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 6px var(--accent-cyan);
+      display: none;
+    }
+    .nav-item.active .nav-dot { display: block; }
+
+    /* ── TOAST NOTIFICATIONS ── */
+    #toast {
+      position: fixed;
+      top: calc(72px + var(--safe-top));
+      left: 50%;
+      transform: translateX(-50%) translateY(-12px);
+      background: rgba(13, 18, 30, 0.9);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 8px 20px;
+      border-radius: 999px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), 0 0 16px rgba(0, 229, 255, 0.25);
+      backdrop-filter: blur(16px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 200;
+      white-space: nowrap;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── AUDIO ROUTING CARD & HEADER PILL ── */
+    .route-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      color: var(--accent-cyan);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .route-pill.phone-active {
+      background: rgba(16, 185, 129, 0.16);
+      border-color: rgba(16, 185, 129, 0.45);
+      color: var(--accent-green);
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+    }
+    .route-card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .route-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .route-btn {
+      padding: 12px 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--surface-border);
+      border-radius: 14px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      text-align: center;
+    }
+    .route-btn:active { transform: scale(0.95); }
+    .route-btn-icon { font-size: 20px; }
+    .route-btn-title { font-size: 11px; font-weight: 700; color: var(--text-main); }
+    .route-btn-sub { font-size: 9px; color: var(--text-dim); }
+    .route-btn.active {
+      background: rgba(0, 229, 255, 0.14);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.18);
+    }
+    .route-btn.active .route-btn-title { color: var(--accent-cyan); }
+    .route-actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .route-sub-btn {
+      padding: 10px 10px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--surface-border);
+      color: var(--text-main);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .route-sub-btn:active {
+      transform: scale(0.96);
+      border-color: var(--accent-cyan);
+    }
+    .sys-btn.active-wake {
+      border-color: rgba(16, 185, 129, 0.45);
+      background: rgba(16, 185, 129, 0.08);
+    }
+    .sys-btn.active-sleep {
+      border-color: rgba(245, 158, 11, 0.45);
+      background: rgba(245, 158, 11, 0.08);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOAST -->
+  <div id="toast">Notificación</div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand-wrap">
+      <div class="brand-logo">VIERNES</div>
+      <div class="status-badge" id="host-status">
+        <span class="status-dot"></span>
+        <span id="host-status-text">Conectando</span>
+      </div>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="route-pill" id="header-audio-pill" onclick="cycleAudioRoute()" title="Cambiar salida de voz (PC / Celular)">
+      <span id="header-audio-icon">💻</span>
+      <span id="header-audio-label">Audio: PC</span>
+    </div>
+    <div class="enc-tag" id="enc-badge">AES-256</div>
+  </header>
+
+  <!-- VIEWPORT TABS -->
+  <div id="tab-viewport">
+
+    <!-- ── TAB 1: TERMINAL & CHAT ── -->
+    <div class="tab-pane active" id="pane-chat">
+      <div id="feed"></div>
+
+      <!-- Quick Action Chips -->
+      <div class="chip-scroll">
+        <div class="chip" id="chip-audio-route" onclick="cycleAudioRoute()" style="border-color:rgba(0,229,255,0.35);color:var(--accent-cyan);">📱 Pasar Audio al Celular</div>
+        <div class="chip" onclick="execAction('wake')">👁️ Despertar VIERNES</div>
+        <div class="chip" onclick="sendQuick('Reporte de estado del sistema')">📊 Estado general</div>
+        <div class="chip" onclick="sendQuick('¿Qué canción se está reproduciendo?')">🎵 ¿Qué suena?</div>
+        <div class="chip" onclick="execAction('screenshot')">📸 Captura</div>
+        <div class="chip" onclick="execAction('toggle_mute')">🔇 Silenciar PC</div>
+        <div class="chip" onclick="execAction('lock_screen')">🔒 Bloquear PC</div>
+      </div>
+
+      <!-- Input Bar -->
+      <div class="chat-bar">
+        <label class="bar-btn" for="file-upload-input" title="Enviar archivo">📎</label>
+        <input type="file" id="file-upload-input" multiple style="display:none">
+        <input type="file" id="voice-capture-input" accept="audio/*" capture style="display:none">
+        
+        <input id="chat-inp" type="text" placeholder="Instrucción o pregunta para VIERNES…" autocomplete="off">
+        
+        <button class="bar-btn mic-btn" id="mic-btn" onclick="toggleVoice()" title="Hablar a VIERNES desde el celular">🎤</button>
+        <button class="bar-btn send-btn" onclick="sendChat()" title="Enviar">➤</button>
+      </div>
+    </div>
+
+    <!-- ── TAB 2: PANEL DE CONTROL & HARDWARE ── -->
+    <div class="tab-pane" id="pane-control">
+      
+      <!-- Enrutamiento de Voz & Micrófono (Celular <-> PC) -->
+      <div class="section-title">Voz y Micrófono de VIERNES (Celular ↔ PC)</div>
+      <div class="route-card">
+        <div class="route-grid">
+          <div class="route-btn active" id="route-btn-pc" onclick="setAudioRoute('pc')">
+            <div class="route-btn-icon">💻</div>
+            <div class="route-btn-title">Audio en PC</div>
+            <div class="route-btn-sub">Predeterminado</div>
+          </div>
+          <div class="route-btn" id="route-btn-phone" onclick="setAudioRoute('phone')">
+            <div class="route-btn-icon">📱</div>
+            <div class="route-btn-title">En Celular</div>
+            <div class="route-btn-sub">Voz en el móvil</div>
+          </div>
+          <div class="route-btn" id="route-btn-both" onclick="setAudioRoute('both')">
+            <div class="route-btn-icon">🔊</div>
+            <div class="route-btn-title">Ambos</div>
+            <div class="route-btn-sub">PC + Celular</div>
+          </div>
+        </div>
+        <div class="route-actions-row">
+          <button class="route-sub-btn" id="ctrl-mic-btn" onclick="toggleVoice()">
+            <span>🎙️</span> <span id="ctrl-mic-label">Hablar desde Celular</span>
+          </button>
+          <button class="route-sub-btn" onclick="setAudioRoute('pc', true)">
+            <span>🔄</span> <span>Predeterminado PC</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Estado de VIERNES (Despertar / Reposo) -->
+      <div class="section-title">Estado Operativo de VIERNES</div>
+      <div class="action-grid">
+        <div class="sys-btn active-wake" id="btn-wake-viernes" onclick="execAction('wake')">
+          <div class="sys-btn-icon" id="wake-btn-icon">👁️</div>
+          <div class="sys-btn-title" id="wake-btn-title">Despertar VIERNES</div>
+          <div class="sys-btn-desc" id="wake-btn-desc">Activar escucha y voz</div>
+        </div>
+
+        <div class="sys-btn" id="btn-sleep-viernes" onclick="execAction('sleep_viernes')">
+          <div class="sys-btn-icon">🌙</div>
+          <div class="sys-btn-title">Modo Reposo</div>
+          <div class="sys-btn-desc">Poner a dormir a VIERNES</div>
+        </div>
+      </div>
+
+      <div class="section-title">Telemetría en Tiempo Real</div>
+      <div class="telemetry-grid">
+        <!-- CPU -->
+        <div class="tele-card">
+          <div class="tele-header">
+            <span>Procesador</span>
+            <span id="cpu-cores">-- Cores</span>
+          </div>
+          <div class="tele-val"><span id="cpu-val">0</span><span class="tele-unit">%</span></div>
+          <div class="meter-bar-wrap">
+            <div class="meter-bar" id="cpu-bar" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- RAM -->
+        <div class="tele-card">
+          <div class="tele-header">
+            <span>Memoria RAM</span>
+            <span id="ram-used">-- / -- GB</span>
+          </div>
+          <div class="tele-val"><span id="ram-val">0</span><span class="tele-unit">%</span></div>
+          <div class="meter-bar-wrap">
+            <div class="meter-bar" id="ram-bar" style="width: 0%; background: var(--accent-purple);"></div>
+          </div>
+        </div>
+
+        <!-- BATERÍA -->
+        <div class="tele-card">
+          <div class="tele-header">
+            <span>Energía</span>
+            <span id="batt-status">Corriente</span>
+          </div>
+          <div class="tele-val"><span id="batt-val">100</span><span class="tele-unit">%</span></div>
+          <div class="meter-bar-wrap">
+            <div class="meter-bar" id="batt-bar" style="width: 100%; background: var(--accent-green);"></div>
+          </div>
+        </div>
+
+        <!-- DISCO -->
+        <div class="tele-card">
+          <div class="tele-header">
+            <span>Almacenamiento</span>
+            <span id="disk-free">-- GB Libres</span>
+          </div>
+          <div class="tele-val"><span id="disk-val">0</span><span class="tele-unit">%</span></div>
+          <div class="meter-bar-wrap">
+            <div class="meter-bar" id="disk-bar" style="width: 0%; background: var(--accent-blue);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Master Volume Control -->
+      <div class="section-title">Audio & Volumen Maestro (PC)</div>
+      <div class="vol-card">
+        <div class="vol-top">
+          <div class="vol-label">
+            <span id="vol-icon">🔊</span> Volumen Principal PC
+          </div>
+          <div class="vol-pct"><span id="vol-val">100</span>%</div>
+        </div>
+        <div class="vol-slider-wrap">
+          <input class="vol-slider" id="vol-slider" type="range" min="0" max="100" value="100" oninput="onVolumeSlider(this.value)" onchange="applyVolumeSlider(this.value)">
+        </div>
+        <div class="vol-controls">
+          <button class="vol-btn" id="mute-toggle-btn" onclick="execAction('toggle_mute')">🔇 Silenciar</button>
+          <button class="vol-btn" onclick="execAction('set_volume', 25)">25%</button>
+          <button class="vol-btn" onclick="execAction('set_volume', 50)">50%</button>
+          <button class="vol-btn" onclick="execAction('set_volume', 100)">100%</button>
+        </div>
+      </div>
+
+      <!-- System Quick Actions -->
+      <div class="section-title">Comandos de Estación PC</div>
+      <div class="action-grid">
+        <div class="sys-btn" onclick="execAction('screenshot')">
+          <div class="sys-btn-icon">📸</div>
+          <div class="sys-btn-title">Captura Pantalla</div>
+          <div class="sys-btn-desc">Capturar escritorio</div>
+        </div>
+
+        <div class="sys-btn" onclick="execAction('lock_screen')">
+          <div class="sys-btn-icon">🔒</div>
+          <div class="sys-btn-title">Bloquear Estación</div>
+          <div class="sys-btn-desc">Bloquear Windows (Win+L)</div>
+        </div>
+
+        <div class="sys-btn" onclick="execAction('sleep_display')">
+          <div class="sys-btn-icon">💤</div>
+          <div class="sys-btn-title">Suspender Pantalla</div>
+          <div class="sys-btn-desc">Apagar monitores</div>
+        </div>
+
+        <div class="sys-btn" onclick="setAudioRoute('pc', true)">
+          <div class="sys-btn-icon">🔊</div>
+          <div class="sys-btn-title">Audio a la PC</div>
+          <div class="sys-btn-desc">Restaurar predeterminado</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── TAB 3: MULTIMEDIA ── -->
+    <div class="tab-pane" id="pane-media">
+      <div class="section-title">Reproducción en Vivo</div>
+      <div class="media-hero">
+        <div class="art-frame">
+          <img class="art-img" id="media-art" src="" alt="Album Art">
+          <div class="art-placeholder" id="media-placeholder">🎵</div>
+        </div>
+
+        <div class="media-badge" id="media-platform">Windows Media</div>
+        <div class="media-title" id="media-title">Sin reproducción activa</div>
+        <div class="media-artist" id="media-artist">Inicia Spotify o YouTube en tu PC</div>
+
+        <div class="transport-bar">
+          <button class="t-btn" onclick="execAction('prev_track')" title="Anterior">⏮</button>
+          <button class="t-btn play-btn" id="play-pause-btn" onclick="execAction('play_pause')" title="Play / Pausa">⏯</button>
+          <button class="t-btn" onclick="execAction('next_track')" title="Siguiente">⏭</button>
+        </div>
+      </div>
+
+      <div class="section-title">Acciones Multimedia</div>
+      <div class="action-grid">
+        <div class="sys-btn" onclick="sendQuick('Pausa la música')">
+          <div class="sys-btn-icon">⏸</div>
+          <div class="sys-btn-title">Pausar Música</div>
+          <div class="sys-btn-desc">Detener temporalmente</div>
+        </div>
+        <div class="sys-btn" onclick="sendQuick('Reproduce música para concentrarme')">
+          <div class="sys-btn-icon">🎧</div>
+          <div class="sys-btn-title">Modo Enfoque</div>
+          <div class="sys-btn-desc">Pedir música a VIERNES</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB 4: ARCHIVOS & DATOS ── -->
+    <div class="tab-pane" id="pane-files">
+      <div class="section-title">Compartir Archivos con PC</div>
+      
+      <label class="upload-zone" for="file-upload-input-2">
+        <div class="upload-icon">📤</div>
+        <div class="upload-title">Enviar Archivo a VIERNES</div>
+        <div class="upload-sub">Toca para seleccionar fotos, documentos o videos</div>
+      </label>
+      <input type="file" id="file-upload-input-2" multiple style="display:none">
+
+      <div class="section-title">Archivos en el Host</div>
+      <div class="file-list" id="host-file-list">
+        <div style="font-size:12px; color:var(--text-dim); text-align:center; padding:12px;">
+          Cargando archivos del host…
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM TAB NAVIGATION -->
+  <nav>
+    <button class="nav-item active" onclick="switchTab('chat', this)">
+      <span class="nav-icon">💬</span>
+      <span class="nav-label">Terminal</span>
+      <span class="nav-dot"></span>
+    </button>
+    <button class="nav-item" onclick="switchTab('control', this)">
+      <span class="nav-icon">🎛</span>
+      <span class="nav-label">Control</span>
+      <span class="nav-dot"></span>
+    </button>
+    <button class="nav-item" onclick="switchTab('media', this)">
+      <span class="nav-icon">🎵</span>
+      <span class="nav-label">Música</span>
+      <span class="nav-dot"></span>
+    </button>
+    <button class="nav-item" onclick="switchTab('files', this)">
+      <span class="nav-icon">📁</span>
+      <span class="nav-label">Archivos</span>
+      <span class="nav-dot"></span>
+    </button>
+  </nav>
+
+  <script>
+    // ── Auth Verification ────────────────────────────────────────────────────
+    const urlParams = new URLSearchParams(window.location.search);
+    let _authToken  = urlParams.get('token') || sessionStorage.getItem('viernes_token');
+    let _sessionKey = urlParams.get('key') || sessionStorage.getItem('viernes_key');
+
+    if (_authToken) {
+      try { sessionStorage.setItem('viernes_token', _authToken); } catch(_) {}
+    }
+    if (_sessionKey) {
+      try { sessionStorage.setItem('viernes_key', _sessionKey); } catch(_) {}
+    }
+
+    if (urlParams.has('token') || urlParams.has('key')) {
+      try {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch(_) {}
+    }
+
+    if (!_authToken) {
+      location.replace('/login');
+    }
+
+    function _authHeader() { return { 'Authorization': `Bearer ${_authToken}` }; }
+    function _authFetch(url, opts = {}) {
+      opts.headers = Object.assign({}, opts.headers, _authHeader());
+      return fetch(url, opts);
+    }
+
+    // ── Haptics ──────────────────────────────────────────────────────────────
+    function haptic(ms = 15) {
+      if (navigator.vibrate) navigator.vibrate([ms]);
+    }
+
+    // ── Toast Notification ───────────────────────────────────────────────────
+    let _toastTimer;
+    function toast(text) {
+      const t = document.getElementById('toast');
+      t.textContent = text;
+      t.classList.add('show');
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+    }
+
+    // ── AES-256-CBC Encryption ───────────────────────────────────────────────
+    const _AES_SALT = 'VIERNES-DASHBOARD-v1';
+    let _aesKey = null;
+
+    function _initCrypto(key) {
+      if (typeof CryptoJS === 'undefined') return false;
+      _aesKey = CryptoJS.SHA256(key + _AES_SALT);
+      return true;
+    }
+
+    function _encrypt(plaintext) {
+      if (!_aesKey || typeof CryptoJS === 'undefined') return null;
+      try {
+        const iv  = CryptoJS.lib.WordArray.random(16);
+        const enc = CryptoJS.AES.encrypt(
+          CryptoJS.enc.Utf8.parse(plaintext), _aesKey,
+          { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
+        );
+        const hex = iv.toString(CryptoJS.enc.Hex) + enc.ciphertext.toString(CryptoJS.enc.Hex);
+        const bytes = new Uint8Array(hex.length / 2);
+        for (let i = 0; i < bytes.length; i++)
+          bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+        return btoa(String.fromCharCode(...bytes));
+      } catch { return null; }
+    }
+
+    const _encReady = _sessionKey ? _initCrypto(_sessionKey) : false;
+    const encBadge  = document.getElementById('enc-badge');
+    if (_encReady) {
+      encBadge.textContent = 'AES-256';
+    } else {
+      encBadge.textContent = 'TLS';
+    }
+
+    // ── Tab Navigation ───────────────────────────────────────────────────────
+    function switchTab(tabId, el) {
+      haptic(10);
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+      
+      const targetPane = document.getElementById(`pane-${tabId}`);
+      if (targetPane) targetPane.classList.add('active');
+      if (el) el.classList.add('active');
+
+      if (tabId === 'files') loadHostFiles();
+    }
+
+    // ── Mobile Speaker Output (Web Audio API 24kHz 16-bit Mono PCM) ──────────
+    let _outAudioCtx = null;
+    let _nextPlayTime = 0;
+    let _activeAudioNodes = [];
+    let _currentAudioRoute = 'pc'; // 'pc' | 'phone' | 'both'
+    let _viernesAwake = true;
+
+    function _ensureOutAudioCtx() {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      if (!_outAudioCtx || _outAudioCtx.state === 'closed') {
+        try { _outAudioCtx = new AC({ sampleRate: 24000 }); }
+        catch (_) { _outAudioCtx = new AC(); }
+        _nextPlayTime = 0;
+      }
+      if (_outAudioCtx.state === 'suspended') {
+        _outAudioCtx.resume().catch(() => {});
+      }
+      return _outAudioCtx;
+    }
+
+    // Unlock mobile AudioContext on first user interaction
+    ['touchstart', 'touchend', 'click'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        if (_currentAudioRoute === 'phone' || _currentAudioRoute === 'both') {
+          _ensureOutAudioCtx();
+        }
+      }, { passive: true });
+    });
+
+    function clearMobileAudioQueue() {
+      for (const n of _activeAudioNodes) {
+        try { n.stop(); n.disconnect(); } catch (_) {}
+      }
+      _activeAudioNodes = [];
+      if (_outAudioCtx) {
+        _nextPlayTime = _outAudioCtx.currentTime;
+      }
+    }
+
+    function playPcmChunk(arrayBuffer) {
+      if (_currentAudioRoute !== 'phone' && _currentAudioRoute !== 'both') return;
+      if (!arrayBuffer || arrayBuffer.byteLength < 2) return;
+      const ctx = _ensureOutAudioCtx();
+      if (!ctx) return;
+
+      const int16 = new Int16Array(arrayBuffer);
+      const len = int16.length;
+      const float32 = new Float32Array(len);
+      for (let i = 0; i < len; i++) {
+        float32[i] = int16[i] / 32768.0;
+      }
+
+      const audioBuf = ctx.createBuffer(1, len, 24000);
+      audioBuf.getChannelData(0).set(float32);
+
+      const src = ctx.createBufferSource();
+      src.buffer = audioBuf;
+      src.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      if (_nextPlayTime < now + 0.01) {
+        _nextPlayTime = now + 0.02;
+      }
+      src.start(_nextPlayTime);
+      _nextPlayTime += audioBuf.duration;
+
+      _activeAudioNodes.push(src);
+      src.onended = () => {
+        const idx = _activeAudioNodes.indexOf(src);
+        if (idx !== -1) _activeAudioNodes.splice(idx, 1);
+      };
+    }
+
+    function setAudioRoute(route, isReset = false) {
+      haptic(20);
+      if (route === 'phone' || route === 'both') {
+        _ensureOutAudioCtx();
+      } else {
+        clearMobileAudioQueue();
+      }
+      updateAudioRouteUI(route);
+      if (isReset) {
+        execAction('reset_pc_audio');
+        toast('💻 Audio restaurado en la PC (Predeterminado)');
+      } else {
+        execAction('set_audio_route', route);
+        if (route === 'phone') toast('📱 Audio de VIERNES activo en este Celular');
+        else if (route === 'both') toast('🔊 Audio activo en PC + Celular');
+        else toast('💻 Audio activo en la PC');
+      }
+    }
+
+    function cycleAudioRoute() {
+      const next = _currentAudioRoute === 'pc' ? 'phone' : (_currentAudioRoute === 'phone' ? 'both' : 'pc');
+      setAudioRoute(next);
+    }
+
+    function updateAudioRouteUI(route) {
+      if (!route) return;
+      _currentAudioRoute = route;
+      ['pc', 'phone', 'both'].forEach(r => {
+        const b = document.getElementById(`route-btn-${r}`);
+        if (b) b.classList.toggle('active', r === route);
+      });
+      const pill = document.getElementById('header-audio-pill');
+      const icon = document.getElementById('header-audio-icon');
+      const lbl  = document.getElementById('header-audio-label');
+      const chip = document.getElementById('chip-audio-route');
+      if (route === 'phone') {
+        if (pill) pill.classList.add('phone-active');
+        if (icon) icon.textContent = '📱';
+        if (lbl)  lbl.textContent  = 'Audio: Celular';
+        if (chip) chip.textContent = '💻 Volver Audio a la PC';
+      } else if (route === 'both') {
+        if (pill) pill.classList.add('phone-active');
+        if (icon) icon.textContent = '🔊';
+        if (lbl)  lbl.textContent  = 'Audio: Ambos';
+        if (chip) chip.textContent = '💻 Volver Audio a la PC';
+      } else {
+        if (pill) pill.classList.remove('phone-active');
+        if (icon) icon.textContent = '💻';
+        if (lbl)  lbl.textContent  = 'Audio: PC';
+        if (chip) chip.textContent = '📱 Pasar Audio al Celular';
+      }
+    }
+
+    function updateAwakeUI(isAwake) {
+      _viernesAwake = Boolean(isAwake);
+      const wBtn = document.getElementById('btn-wake-viernes');
+      const sBtn = document.getElementById('btn-sleep-viernes');
+      const wTitle = document.getElementById('wake-btn-title');
+      const wDesc  = document.getElementById('wake-btn-desc');
+      if (_viernesAwake) {
+        setOnlineStatus('online', 'En Línea');
+        if (wBtn) wBtn.classList.add('active-wake');
+        if (sBtn) sBtn.classList.remove('active-sleep');
+        if (wTitle) wTitle.textContent = 'VIERNES Activo';
+        if (wDesc)  wDesc.textContent  = 'Escuchando — Toca para reactivar';
+      } else {
+        setOnlineStatus('sleeping', 'En Reposo');
+        if (wBtn) wBtn.classList.remove('active-wake');
+        if (sBtn) sBtn.classList.add('active-sleep');
+        if (wTitle) wTitle.textContent = 'Despertar VIERNES';
+        if (wDesc)  wDesc.textContent  = 'En reposo — Toca para despertar';
+      }
+    }
+
+    // ── WebSocket Connection ─────────────────────────────────────────────────
+    const hostStatus     = document.getElementById('host-status');
+    const hostStatusText = document.getElementById('host-status-text');
+    const feed           = document.getElementById('feed');
+
+    const _wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const _wsUrl   = `${_wsProto}://${location.host}/ws?token=${encodeURIComponent(_authToken)}`;
+    let ws         = null;
+    let _reconnectTimer = null;
+
+    function connectWS() {
+      ws = new WebSocket(_wsUrl);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        setOnlineStatus(_viernesAwake ? 'online' : 'sleeping', _viernesAwake ? 'En Línea' : 'En Reposo');
+        toast('Conectado a VIERNES');
+      };
+
+      ws.onclose = () => {
+        setOnlineStatus('offline', 'Reconectando');
+        clearTimeout(_reconnectTimer);
+        _reconnectTimer = setTimeout(connectWS, 3000);
+      };
+
+      ws.onerror = () => {
+        setOnlineStatus('offline', 'Error');
+      };
+
+      ws.onmessage = (e) => {
+        if (e.data instanceof ArrayBuffer) {
+          playPcmChunk(e.data);
+          return;
+        }
+        try {
+          const m = JSON.parse(e.data);
+          handleServerMessage(m);
+        } catch (_) {}
+      };
+    }
+
+    function setOnlineStatus(type, label) {
+      hostStatus.className = `status-badge ${type}`;
+      hostStatusText.textContent = label;
+    }
+
+    function handleServerMessage(m) {
+      if (m.type === 'log') {
+        appendMessage(m.speaker, m.text);
+      } else if (m.type === 'status') {
+        const st = m.status || m.state;
+        if (typeof m.awake === 'boolean') {
+          updateAwakeUI(m.awake);
+        } else if (st === 'active') {
+          updateAwakeUI(true);
+        } else if (st === 'sleeping') {
+          updateAwakeUI(false);
+        }
+      } else if (m.type === 'audio_route') {
+        updateAudioRouteUI(m.route);
+      } else if (m.type === 'audio_clear') {
+        clearMobileAudioQueue();
+      } else if (m.type === 'telemetry') {
+        updateTelemetryHUD(m.data);
+      } else if (m.type === 'sys') {
+        appendSysMessage(m.text);
+      } else if (m.type === 'file_received') {
+        toast(`📎 Archivo recibido: ${m.name}`);
+        appendSysMessage(`📎 Archivo cargado en VIERNES: ${m.name} (${_fmtSize(m.size || 0)})`);
+        loadHostFiles();
+      }
+    }
+
+    // ── Chat Functions ───────────────────────────────────────────────────────
+    let _lastUserMsgText = '';
+    let _lastUserMsgTime = 0;
+
+    function appendMessage(speaker, text, isLocal = false) {
+      const isViernes = speaker === 'viernes';
+      if (!isViernes) {
+        const now = Date.now();
+        if (!isLocal && text === _lastUserMsgText && (now - _lastUserMsgTime) < 4000) {
+          return; // Deduplicate echo from server
+        }
+        _lastUserMsgText = text;
+        _lastUserMsgTime = now;
+      }
+      const wrap = document.createElement('div');
+      wrap.className = `msg-wrap ${isViernes ? 'msg-viernes' : 'msg-user'}`;
+      
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      wrap.innerHTML = `
+        <div class="msg-meta">
+          <span>${isViernes ? 'VIERNES' : 'TÚ'}</span>
+          <span>${timeStr}</span>
+        </div>
+        <div class="msg-text">${esc(text)}</div>
+      `;
+      feed.appendChild(wrap);
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function appendSysMessage(text) {
+      const d = document.createElement('div');
+      d.className = 'msg-sys';
+      d.textContent = text;
+      feed.appendChild(d);
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function sendChat() {
+      const inp = document.getElementById('chat-inp');
+      const txt = inp.value.trim();
+      if (!txt) return;
+      inp.value = '';
+      sendTextMessage(txt);
+    }
+
+    function sendQuick(txt) {
+      haptic(15);
+      switchTab('chat', document.querySelector('.nav-item'));
+      sendTextMessage(txt);
+    }
+
+    function sendTextMessage(txt) {
+      if (_currentAudioRoute === 'phone' || _currentAudioRoute === 'both') {
+        _ensureOutAudioCtx();
+      }
+      updateAwakeUI(true);
+      appendMessage('user', txt, true);
+      const enc  = _encrypt(txt);
+      const body = enc ? { enc } : { text: txt };
+      
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(Object.assign({ type: 'command' }, body)));
+      } else {
+        _authFetch('/api/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      }
+    }
+
+    document.getElementById('chat-inp').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); sendChat(); }
+    });
+
+    // ── Remote Action Executions ─────────────────────────────────────────────
+    function execAction(actionName, actionVal = null) {
+      haptic(20);
+      if (actionName === 'wake') updateAwakeUI(true);
+      if (actionName === 'sleep_viernes') updateAwakeUI(false);
+
+      const payload = { type: 'action', action: actionName };
+      if (actionVal !== null) payload.value = actionVal;
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+      } else {
+        _authFetch('/api/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      if (actionName === 'screenshot') toast('📸 Captura de pantalla realizada');
+      if (actionName === 'lock_screen') toast('🔒 Estación de trabajo bloqueada');
+      if (actionName === 'sleep_display') toast('💤 Pantalla suspendida');
+      if (actionName === 'wake') toast('👁️ VIERNES Despierto y Activo');
+      if (actionName === 'sleep_viernes') toast('🌙 VIERNES en Modo Reposo');
+    }
+
+    // ── Volume Slider ────────────────────────────────────────────────────────
+    let _volDebounce;
+    function onVolumeSlider(val) {
+      document.getElementById('vol-val').textContent = val;
+    }
+
+    function applyVolumeSlider(val) {
+      clearTimeout(_volDebounce);
+      _volDebounce = setTimeout(() => {
+        execAction('set_volume', parseInt(val));
+      }, 80);
+    }
+
+    // ── Telemetry Update ─────────────────────────────────────────────────────
+    function updateTelemetryHUD(data) {
+      if (!data) return;
+
+      if (data.audio_route) {
+        updateAudioRouteUI(data.audio_route);
+      }
+      if (typeof data.awake === 'boolean') {
+        updateAwakeUI(data.awake);
+      }
+
+      // CPU
+      if (data.cpu) {
+        document.getElementById('cpu-val').textContent = Math.round(data.cpu.percent || 0);
+        document.getElementById('cpu-bar').style.width = `${Math.min(100, data.cpu.percent || 0)}%`;
+        if (data.cpu.cores) document.getElementById('cpu-cores').textContent = `${data.cpu.cores} Cores`;
+      }
+
+      // RAM
+      if (data.ram) {
+        document.getElementById('ram-val').textContent = Math.round(data.ram.percent || 0);
+        document.getElementById('ram-bar').style.width = `${Math.min(100, data.ram.percent || 0)}%`;
+        if (data.ram.used_gb) {
+          document.getElementById('ram-used').textContent = `${data.ram.used_gb} / ${data.ram.total_gb} GB`;
+        }
+      }
+
+      // Batería
+      if (data.battery) {
+        document.getElementById('batt-val').textContent = data.battery.percent || 100;
+        document.getElementById('batt-bar').style.width = `${data.battery.percent || 100}%`;
+        document.getElementById('batt-status').textContent = data.battery.plugged ? 'Cargando' : 'Batería';
+      }
+
+      // Disco
+      if (data.disk) {
+        document.getElementById('disk-val').textContent = Math.round(data.disk.percent || 0);
+        document.getElementById('disk-bar').style.width = `${data.disk.percent || 0}%`;
+        if (data.disk.free_gb) {
+          document.getElementById('disk-free').textContent = `${data.disk.free_gb} GB Libres`;
+        }
+      }
+
+      // Volumen
+      if (data.volume) {
+        const v = data.volume.percent;
+        const slider = document.getElementById('vol-slider');
+        if (document.activeElement !== slider) {
+          slider.value = v;
+          document.getElementById('vol-val').textContent = v;
+        }
+        const isMuted = data.volume.muted;
+        const muteBtn = document.getElementById('mute-toggle-btn');
+        if (isMuted) {
+          muteBtn.classList.add('mute-active');
+          muteBtn.textContent = '🔊 Reactivar';
+          document.getElementById('vol-icon').textContent = '🔇';
+        } else {
+          muteBtn.classList.remove('mute-active');
+          muteBtn.textContent = '🔇 Silenciar';
+          document.getElementById('vol-icon').textContent = '🔊';
+        }
+      }
+
+      // Multimedia
+      const med = data.media;
+      const mTitle = document.getElementById('media-title');
+      const mArtist = document.getElementById('media-artist');
+      const mPlatform = document.getElementById('media-platform');
+      const mArt = document.getElementById('media-art');
+      const mPlace = document.getElementById('media-placeholder');
+
+      if (med && (med.title || med.artist)) {
+        mTitle.textContent = med.title || 'Pista Activa';
+        mArtist.textContent = med.artist || med.album || 'Artista';
+        mPlatform.textContent = med.platform || 'Media Player';
+        
+        if (med.has_thumbnail) {
+          mArt.src = `/api/media/thumbnail?token=${encodeURIComponent(_authToken)}&t=${Date.now()}`;
+          mArt.style.display = 'block';
+          mPlace.style.display = 'none';
+        } else {
+          mArt.style.display = 'none';
+          mPlace.style.display = 'block';
+        }
+      } else {
+        mTitle.textContent = 'Sin reproducción activa';
+        mArtist.textContent = 'Inicia Spotify o YouTube en tu PC';
+        mPlatform.textContent = 'Sistema';
+        mArt.style.display = 'none';
+        mPlace.style.display = 'block';
+      }
+    }
+
+    // ── Voice Streaming & Dictation (Phone Mic → VIERNES) ────────────────────
+    let _voiceWs   = null;
+    let _audioCtx  = null;
+    let _micStm    = null;
+    let _audioNd   = null;
+    let _speechRec = null;
+    const micBtn     = document.getElementById('mic-btn');
+    const ctrlMicLbl = document.getElementById('ctrl-mic-label');
+
+    function _setMicRecordingUI(active) {
+      if (micBtn) micBtn.classList.toggle('recording', active);
+      if (ctrlMicLbl) ctrlMicLbl.textContent = active ? 'Detener Micrófono' : 'Hablar desde Celular';
+    }
+
+    function _f32toPcm16(f32, srcRate) {
+      let s = f32;
+      if (srcRate !== 16000) {
+        const ratio = srcRate / 16000;
+        const len   = Math.round(f32.length / ratio);
+        s = new Float32Array(len);
+        for (let i = 0; i < len; i++)
+          s[i] = f32[Math.min(Math.round(i * ratio), f32.length - 1)];
+      }
+      const out = new Int16Array(s.length);
+      for (let i = 0; i < s.length; i++)
+        out[i] = Math.max(-32768, Math.min(32767, Math.round(s[i] * 32768)));
+      return out.buffer;
+    }
+
+    async function toggleVoice() {
+      if (_voiceWs || _speechRec) { stopVoice(); return; }
+
+      haptic(25);
+      // Automatically route VIERNES audio output to the phone if still on PC-only
+      if (_currentAudioRoute === 'pc') {
+        setAudioRoute('both');
+      } else {
+        _ensureOutAudioCtx();
+      }
+
+      // 1. Try real-time WebSocket PCM streaming via getUserMedia (works on HTTPS :8001 or local flags)
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+          });
+          await _startRealtimeStream(stream);
+          return;
+        } catch (err) {
+          // Fall through to SpeechRecognition or native audio capture
+        }
+      }
+
+      // 2. Try built-in Web Speech Recognition (works on mobile browsers even over HTTP)
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SR) {
+        try {
+          const rec = new SR();
+          rec.lang = 'es-MX';
+          rec.interimResults = true;
+          rec.maxAlternatives = 1;
+          const inp = document.getElementById('chat-inp');
+          let finalTranscript = '';
+
+          rec.onstart = () => {
+            _speechRec = rec;
+            _setMicRecordingUI(true);
+            toast('🎤 Escuchando tu voz… Habla ahora');
+          };
+          rec.onresult = (event) => {
+            let interim = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              const t = event.results[i][0].transcript;
+              if (event.results[i].isFinal) finalTranscript += t;
+              else interim += t;
+            }
+            if (inp) inp.value = (finalTranscript || interim).trim();
+          };
+          rec.onerror = () => {
+            stopVoice();
+            // Fallback to native voice capture input
+            const vc = document.getElementById('voice-capture-input');
+            if (vc) vc.click();
+          };
+          rec.onend = () => {
+            const textToSend = (finalTranscript || (inp ? inp.value : '')).trim();
+            _speechRec = null;
+            _setMicRecordingUI(false);
+            if (textToSend) {
+              if (inp) inp.value = '';
+              sendTextMessage(textToSend);
+            }
+          };
+          rec.start();
+          return;
+        } catch (_) {}
+      }
+
+      // 3. Fallback: Native mobile microphone recorder -> /api/voice-input
+      const vc = document.getElementById('voice-capture-input');
+      if (vc) {
+        toast('🎙️ Graba tu mensaje de voz para VIERNES');
+        vc.click();
+      } else {
+        toast('Micrófono requiere HTTPS (:8001) o dictado por voz');
+      }
+    }
+
+    async function _startRealtimeStream(stream) {
+      let ctx;
+      try { ctx = new AudioContext({ sampleRate: 16000 }); }
+      catch (_) { ctx = new AudioContext(); }
+      if (ctx.state === 'suspended') await ctx.resume();
+
+      const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const vWs = new WebSocket(
+        `${wsProto}://${location.host}/ws/phone-audio?token=${encodeURIComponent(_authToken)}`
+      );
+      vWs.binaryType = 'arraybuffer';
+
+      vWs.onopen = async () => {
+        const rate = ctx.sampleRate;
+        const src  = ctx.createMediaStreamSource(stream);
+
+        const wCode = `class J extends AudioWorkletProcessor{process(i){const c=i[0]?.[0];if(c)this.port.postMessage(c.slice());return true;}}registerProcessor('j',J);`;
+        try {
+          const burl = URL.createObjectURL(new Blob([wCode], { type: 'application/javascript' }));
+          await ctx.audioWorklet.addModule(burl);
+          URL.revokeObjectURL(burl);
+          const nd = new AudioWorkletNode(ctx, 'j');
+          let _pbuf = [], _plen = 0;
+          nd.port.onmessage = e => {
+            const chunk = new Int16Array(_f32toPcm16(e.data, rate));
+            _pbuf.push(chunk); _plen += chunk.length;
+            if (_plen >= 1024) {
+              const out = new Int16Array(_plen); let off = 0;
+              for (const c of _pbuf) { out.set(c, off); off += c.length; }
+              if (vWs.readyState === 1) vWs.send(out.buffer);
+              _pbuf = []; _plen = 0;
+            }
+          };
+          src.connect(nd);
+          _audioNd = nd;
+        } catch (_) {
+          const sp = ctx.createScriptProcessor(4096, 1, 1);
+          sp.onaudioprocess = e => {
+            if (vWs.readyState === 1) vWs.send(_f32toPcm16(e.inputBuffer.getChannelData(0), rate));
+          };
+          src.connect(sp); sp.connect(ctx.destination);
+          _audioNd = sp;
+        }
+
+        _setMicRecordingUI(true);
+        toast('🎤 Micrófono del celular en vivo activo');
+      };
+
+      vWs.onclose = () => { stopVoice(); };
+      vWs.onerror = () => { stopVoice(); toast('Error de transmisión de voz'); };
+
+      _voiceWs  = vWs;
+      _audioCtx = ctx;
+      _micStm   = stream;
+    }
+
+    function stopVoice() {
+      if (_speechRec) {
+        try { _speechRec.stop(); } catch (_) {}
+        _speechRec = null;
+      }
+      if (_audioNd)  { try { _audioNd.disconnect(); } catch (_) {}; _audioNd = null; }
+      if (_audioCtx) { try { _audioCtx.close(); } catch (_) {}; _audioCtx = null; }
+      if (_micStm)   { _micStm.getTracks().forEach(t => t.stop()); _micStm = null; }
+      if (_voiceWs)  {
+        const w = _voiceWs; _voiceWs = null;
+        if (w.readyState < 2) w.close();
+      }
+      _setMicRecordingUI(false);
+    }
+
+    // Handle native audio capture upload -> /api/voice-input
+    const voiceCaptureEl = document.getElementById('voice-capture-input');
+    if (voiceCaptureEl) {
+      voiceCaptureEl.addEventListener('change', async function() {
+        const file = this.files && this.files[0];
+        this.value = '';
+        if (!file) return;
+        toast('🎙️ Enviando nota de voz a VIERNES…');
+        try {
+          const buf = await file.arrayBuffer();
+          await _authFetch('/api/voice-input', {
+            method: 'POST',
+            headers: { 'Content-Type': file.type || 'audio/wav' },
+            body: buf
+          });
+          toast('✅ Voz enviada a VIERNES');
+        } catch (_) {
+          toast('Error al enviar nota de voz');
+        }
+      });
+    }
+
+    // ── File Management ──────────────────────────────────────────────────────
+    function _fmtSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      if (bytes < 1024 ** 3) return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+      return (bytes / 1024 ** 3).toFixed(2) + ' GB';
+    }
+
+    function _fileIcon(name) {
+      const ext = (name.split('.').pop() || '').toLowerCase();
+      if (['jpg','jpeg','png','webp','gif'].includes(ext)) return '🖼️';
+      if (['mp4','mov','mkv','webm'].includes(ext)) return '🎬';
+      if (['mp3','wav','flac','m4a'].includes(ext)) return '🎵';
+      if (['pdf'].includes(ext)) return '📋';
+      if (['zip','rar','7z'].includes(ext)) return '📦';
+      return '📄';
+    }
+
+    async function loadHostFiles() {
+      const container = document.getElementById('host-file-list');
+      try {
+        const r = await _authFetch('/api/files');
+        const d = await r.json();
+        if (d && d.files && d.files.length > 0) {
+          container.innerHTML = d.files.map(f => `
+            <div class="file-card">
+              <div class="fc-icon">${_fileIcon(f.name)}</div>
+              <div class="fc-info">
+                <div class="fc-name">${esc(f.name)}</div>
+                <div class="fc-size">${_fmtSize(f.size)}</div>
+              </div>
+              <a class="fc-btn" href="/uploads/${encodeURIComponent(f.name)}?token=${encodeURIComponent(_authToken)}" download="${esc(f.name)}">Descargar</a>
+            </div>
+          `).join('');
+        } else {
+          container.innerHTML = `<div style="font-size:12px; color:var(--text-dim); text-align:center; padding:16px;">No hay archivos guardados recientemente</div>`;
+        }
+      } catch (_) {
+        container.innerHTML = `<div style="font-size:12px; color:var(--accent-red); text-align:center; padding:16px;">Error al cargar archivos</div>`;
+      }
+    }
+
+    function uploadFile(file) {
+      haptic(15);
+      toast(`📎 Subiendo ${file.name}…`);
+      const fd = new FormData();
+      fd.append('file', file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/upload');
+      xhr.setRequestHeader('Authorization', `Bearer ${_authToken}`);
+      xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name || 'upload'));
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          toast(`✅ ¡${file.name} enviado a VIERNES!`);
+          loadHostFiles();
+        } else {
+          toast('Error al subir archivo');
+        }
+      };
+      xhr.onerror = () => toast('Error de conexión al subir');
+      xhr.send(fd);
+    }
+
+    ['file-upload-input', 'file-upload-input-2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', function() {
+          Array.from(this.files).forEach(uploadFile);
+          this.value = '';
+        });
+      }
+    });
+
+    // ── Initialize ───────────────────────────────────────────────────────────
+    connectWS();
+  </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "Version": 3,
+  "FileReferences": {
+    "Moc": "edith.moc3",
+    "Textures": [
+      "textures/texture_00.png",
+      "textures/texture_01.png"
+    ],
+    "Physics": "edith.physics3.json",
+    "DisplayInfo": "edith.cdi3.json",
+    "Expressions": [
+      {
+        "Name": "smile",
+        "File": "exp_smile.exp3.json"
+      },
+      {
+        "Name": "squint",
+        "File": "exp_squint.exp3.json"
+      },
+      {
+        "Name": "tears",
+        "File": "exp_tears.exp3.json"
+      },
+      {
+        "Name": "teardrop",
+        "File": "exp_teardrop.exp3.json"
+      }
+    ]
+  },
+  "Groups": [
+    {
+      "Target": "Parameter",
+      "Name": "EyeBlink",
+      "Ids": [
+        "ParamEyeLOpen",
+        "ParamEyeROpen"
+      ]
+    },
+    {
+      "Target": "Parameter",
+      "Name": "LipSync",
+      "Ids": [
+        "ParamMouthOpenY"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Viernes Live2D</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+    }
+    #canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+  </style>
+  <script src="live2d_web/live2dcubismcore.min.js"></script>
+  <script src="live2d_web/pixi.min.js"></script>
+  <script src="live2d_web/cubism4.min.js"></script>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <script>
+    let currentModel = null;
+    let mouthTarget = 0.0;
+    let mouthCurrent = 0.0;
+    let lookTargetX = 0.0, lookTargetY = 0.0;
+    let lookCurrentX = 0.0, lookCurrentY = 0.0;
+    let moodState = "IDLE";
+    
+    // Natural eye blink state
+    let blinkTimer = 0;
+    let nextBlinkTime = 180 + Math.random() * 120; // frames (~3-5s)
+    let isBlinking = false;
+    let blinkProgress = 0.0;
+    let manualEyeOpen = null; // if manually overridden
+    let customParams = {};
+
+    const canvas = document.getElementById('canvas');
+    const app = new PIXI.Application({
+      view: canvas,
+      transparent: true,
+      autoDensity: true,
+      antialias: true,
+      preserveDrawingBuffer: true,
+      resolution: window.devicePixelRatio || 1,
+      width: window.innerWidth || 500,
+      height: window.innerHeight || 600,
+      backgroundAlpha: 0
+    });
+
+    function fitModel() {
+      if (!currentModel) return;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      app.renderer.resize(w, h);
+
+      // Model coordinates: 4000 x 6000
+      // Frame complete full body from melusine ears to shoes/feet with clean margins
+      const mw = 4000;
+      const mh = 6000;
+      
+      const scale = Math.min(w / (mw * 0.44), h / (mh * 0.94));
+      currentModel.scale.set(scale);
+
+      // Center horizontally, position full body with breathing margins
+      currentModel.x = (w - mw * scale) / 2;
+      currentModel.y = 8;
+    }
+
+    window.addEventListener('resize', fitModel);
+
+    // Load Live2D model
+    const modelJson = encodeURI('希格雯.model3.json');
+    PIXI.live2d.Live2DModel.from(modelJson, { autoInteract: false, autoBlink: false })
+      .then(model => {
+        currentModel = model;
+        currentModel.autoUpdate = false;
+        if (currentModel.internalModel) {
+          currentModel.internalModel.eyeBlink = undefined;
+        }
+        app.stage.addChild(model);
+        fitModel();
+        window.__MODEL_READY__ = true;
+        console.log("Live2D Model Loaded Successfully!");
+
+        // Animation ticker
+        app.ticker.add((delta) => {
+          if (!currentModel || !currentModel.internalModel || !currentModel.internalModel.coreModel) return;
+          
+          // Step physics & animation
+          currentModel.update(delta);
+          const core = currentModel.internalModel.coreModel;
+
+          // 1. Natural Blink calculation
+          let eyeOpen = 1.0;
+          if (manualEyeOpen !== null) {
+            eyeOpen = manualEyeOpen;
+          } else if (moodState === "SLEEPING") {
+            eyeOpen = 0.0;
+          } else {
+            blinkTimer += delta;
+            if (!isBlinking && blinkTimer >= nextBlinkTime) {
+              isBlinking = true;
+              blinkProgress = 0.0;
+            }
+            if (isBlinking) {
+              blinkProgress += delta * 0.15; // ~12 frames for full blink
+              if (blinkProgress < 0.5) {
+                eyeOpen = 1.0 - (blinkProgress * 2.0);
+              } else if (blinkProgress < 1.0) {
+                eyeOpen = (blinkProgress - 0.5) * 2.0;
+              } else {
+                isBlinking = false;
+                blinkTimer = 0;
+                nextBlinkTime = 160 + Math.random() * 140;
+                eyeOpen = 1.0;
+              }
+            }
+          }
+
+          core.setParameterValueById('ParamEyeLOpen', eyeOpen);
+          core.setParameterValueById('ParamEyeROpen', eyeOpen);
+
+          // 2. Mouth smoothing (reacts to audio level)
+          mouthCurrent += (mouthTarget - mouthCurrent) * 0.45;
+          const mouthVal = Math.max(0.0, Math.min(1.8, mouthCurrent * 1.6));
+          core.setParameterValueById('ParamMouthOpenY', mouthVal);
+
+          // 3. Smooth glance / head look
+          lookCurrentX += (lookTargetX - lookCurrentX) * 0.10;
+          lookCurrentY += (lookTargetY - lookCurrentY) * 0.10;
+
+          // Head angles
+          core.setParameterValueById('ParamAngleX', lookCurrentX * 24);
+          core.setParameterValueById('ParamAngleY', lookCurrentY * 18);
+          core.setParameterValueById('ParamAngleZ', lookCurrentX * -8);
+          // Eyeballs follow look
+          core.setParameterValueById('ParamEyeBallX', lookCurrentX * 0.85);
+          core.setParameterValueById('ParamEyeBallY', lookCurrentY * 0.85);
+
+          // 4. Subtle breathing float
+          const breath = (Math.sin(Date.now() * 0.0022) + 1.0) * 0.5;
+          core.setParameterValueById('ParamBreath', breath);
+
+          // 5. Mood / State expressions
+          if (moodState === "SPEAKING") {
+            core.setParameterValueById('ParamMouthForm', 0.8);
+            core.setParameterValueById('ParamEyeLSmile', 0.35);
+            core.setParameterValueById('ParamEyeRSmile', 0.35);
+            core.setParameterValueById('ParamCheek', 0.35);
+          } else if (moodState === "LISTENING") {
+            core.setParameterValueById('ParamBrowLY', 0.25);
+            core.setParameterValueById('ParamBrowRY', 0.25);
+            core.setParameterValueById('ParamMouthForm', 0.3);
+            core.setParameterValueById('ParamCheek', 0.2);
+          } else if (moodState === "THINKING") {
+            core.setParameterValueById('ParamAngleZ', Math.sin(Date.now() * 0.003) * 6 - 5);
+            core.setParameterValueById('ParamEyeBallX', -0.4);
+            core.setParameterValueById('ParamEyeBallY', 0.6);
+            core.setParameterValueById('ParamMouthForm', -0.2);
+          } else if (moodState === "SLEEPING") {
+            core.setParameterValueById('ParamMouthForm', 0.1);
+            core.setParameterValueById('ParamCheek', 0.1);
+          } else { // IDLE
+            core.setParameterValueById('ParamMouthForm', 0.2);
+            core.setParameterValueById('ParamEyeLSmile', 0.0);
+            core.setParameterValueById('ParamEyeRSmile', 0.0);
+            core.setParameterValueById('ParamCheek', 0.15);
+          }
+
+          // Apply any explicit custom parameters
+          for (const [id, val] of Object.entries(customParams)) {
+            try {
+              core.setParameterValueById(id, val);
+            } catch(e) {}
+          }
+        });
+      })
+      .catch(err => {
+        console.error("Error loading Live2D model:", err);
+      });
+
+    window.setCustomParams = function(params) {
+      customParams = params || {};
+      if (currentModel && currentModel.internalModel && currentModel.internalModel.coreModel) {
+        const core = currentModel.internalModel.coreModel;
+        for (const [id, val] of Object.entries(customParams)) {
+          try {
+            core.setParameterValueById(id, val);
+          } catch(e) {}
+        }
+      }
+    };
+
+    window.resetParams = function() {
+      customParams = {};
+      if (currentModel && currentModel.internalModel && currentModel.internalModel.coreModel) {
+        const core = currentModel.internalModel.coreModel;
+        const resetIds = [
+          'Param13', 'Param14', 'Param28',
+          'ParamEyeLOpen', 'ParamEyeROpen',
+          'ParamEyeLSmile', 'ParamEyeRSmile',
+          'ParamEyeBallX', 'ParamEyeBallY',
+          'ParamBrowLY', 'ParamBrowRY',
+          'ParamBrowLAngle', 'ParamBrowRAngle',
+          'ParamBrowLX', 'ParamBrowRX',
+          'ParamBrowLForm', 'ParamBrowRForm',
+          'ParamMouthForm', 'ParamMouthOpenY',
+          'ParamCheek',
+          'ParamAngleX', 'ParamAngleY', 'ParamAngleZ',
+          'ParamBodyAngleX', 'ParamBodyAngleY', 'ParamBodyAngleZ',
+          'Param29', 'Param31', 'Param33', 'Param34'
+        ];
+        for (const id of resetIds) {
+          try {
+            if (id === 'ParamEyeLOpen' || id === 'ParamEyeROpen') {
+              core.setParameterValueById(id, 1.0);
+            } else if (id === 'ParamCheek') {
+              core.setParameterValueById(id, 0.15);
+            } else if (id === 'ParamMouthForm') {
+              core.setParameterValueById(id, 0.25);
+            } else {
+              core.setParameterValueById(id, 0.0);
+            }
+          } catch(e) {}
+        }
+      }
+    };
+
+    // Public API for Python interface
+    window.setMouth = function(val) {
+      mouthTarget = Math.max(0.0, Math.min(1.0, val));
+    };
+
+    window.glance = function(dx, dy) {
+      lookTargetX = Math.max(-1.0, Math.min(1.0, dx));
+      lookTargetY = Math.max(-1.0, Math.min(1.0, dy));
+    };
+
+    window.setState = function(state) {
+      moodState = state || "IDLE";
+    };
+
+    window.setManualEyeOpen = function(val) {
+      manualEyeOpen = val;
+    };
+  </script>
+</body>
+</html>

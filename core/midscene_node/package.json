@@ -1,0 +1,9 @@
+{
+  "name": "viernes-midscene-runner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@midscene/web": "^1.17.8"
+  }
+}

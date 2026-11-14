@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "active_project": "Viernes",
+  "projects": {
+    "Viernes": {
+      "path": "C:\\Users\\DanearKoild\\Desktop\\Viernes-main",
+      "organization": "Groovi Dev",
+      "description": "VIERNES personal assistant core",
+      "goals": [
+        {
+          "id": 1,
+          "task": "Integrar análisis de datos en tiempo real y predicciones",
+          "status": "in_progress",
+          "created": "2026-10-14"
+        },
+        {
+          "id": 2,
+          "task": "Comprensión profunda de proyectos y contexto proactivo",
+          "status": "in_progress",
+          "created": "2026-10-14"
+        }
+      ],
+      "notes": "Desarrollado para DanearKoild (CEO Groovi Dev)"
+    }
+  },
+  "last_scan": "2026-10-14T11:02:33.132268"
+}

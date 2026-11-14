@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Viernes — Documentación Oficial · Groovi Developer</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://www.paypal.com/sdk/js?client-id=BAA3UkXdPH1d3xlBRLUDdl9mq0k1cmlMXROTWA4C25WlTYykNP0_j31RuQHN8HXD-TtWURZlPqfCIoarEg&components=hosted-buttons&disable-funding=venmo&currency=USD"></script>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-badge">V</div>
+      <div>
+        <h1>VIERNES OS</h1>
+        <span>by Groovi Developer</span>
+      </div>
+    </div>
+
+    <div class="search-box">
+      <input id="docSearch" type="search" placeholder="Buscar módulo, API, comando..." />
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Inicio</div>
+      <a class="nav-link active" href="#overview">Visión General</a>
+      <a class="nav-link" href="#requirements">Requisitos y Dependencias</a>
+      <a class="nav-link" href="#installer">Instalador Oficial</a>
+      <a class="nav-link" href="#apis">APIs (Obligatoria vs Opcionales)</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Sistema y Visual</div>
+      <a class="nav-link" href="#live2d">Modelos Live2D y Skins</a>
+      <a class="nav-link" href="#hud-studio">HUD Studio y Personalización</a>
+      <a class="nav-link" href="#voices">Motores de Voz (TTS)</a>
+      <a class="nav-link" href="#gallery">Galería de Escenarios</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-title">Capacidades</div>
+      <a class="nav-link" href="#media">TV, Deportes, IPTV y Radio</a>
+      <a class="nav-link" href="#cleanyourtv">Clean Your TV (Android TV)</a>
+      <a class="nav-link" href="#domotica">Device Control y Domótica</a>
+      <a class="nav-link" href="#ai-agents">Agentes IA, Código y Memoria</a>
+      <a class="nav-link" href="#vision-audio">Visión, Traducción y Seguridad</a>
+      <a class="nav-link" href="#productivity">Productividad, Libros y Finanzas</a>
+      <a class="nav-link" href="#communications">Comunicaciones y Proactividad</a>
+      <a class="nav-link" href="#repos">Repositorios Integrados</a>
+      <a class="nav-link" href="#actions">Catálogo Completo (57 Módulos)</a>
+      <a class="nav-link" href="#plugins">Plugins Modulares (41)</a>
+      <a class="nav-link" href="#architecture">Arquitectura, Seguridad y Atajos</a>
+      <a class="nav-link" href="#donate">Apoyar / Donaciones</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <span class="pill green">● Producción Gratuita · Open Source</span>
+        <span class="pill">Creado por <strong>Groovi Developer</strong></span>
+      </div>
+      <a href="#donate" class="pill amber" style="text-decoration:none;">💛 Donar vía PayPal</a>
+    </div>
+
+    <!-- HERO -->
+    <section id="overview" class="hero">
+      <h2>Viernes — Asistente Virtual Multimodal de Nueva Generación</h2>
+      <p>
+        Sistema de asistencia inteligente en tiempo real para escritorio Windows/Linux/macOS con voz bidireccional,
+        avatar interactivo Live2D, control domótico LAN, TV y deportes con AdBlock nativo, radio con visualizador,
+        limpieza de Android TV, flujos Windmill, visión por computadora OpenCV y personalización total mediante HUD Studio.
+      </p>
+      <div class="hero-stats">
+        <div class="stat-card"><strong>57</strong><span>Módulos de Acción</span></div>
+        <div class="stat-card"><strong>41</strong><span>Plugins Modulares</span></div>
+        <div class="stat-card"><strong>14+</strong><span>Repositorios Nativos</span></div>
+        <div class="stat-card"><strong>4</strong><span>Motores de Voz (TTS)</span></div>
+        <div class="stat-card"><strong>6</strong><span>Temas HUD Studio</span></div>
+      </div>
+    </section>
+
+    <!-- REQUIREMENTS & DEPENDENCIES -->
+    <section id="requirements">
+      <h2 class="sec-title">Requisitos Mínimos y Dependencias</h2>
+      <p class="sec-sub">Especificaciones técnicas recomendadas para ejecutar Viernes con fluidez y mínimo consumo.</p>
+      <div class="grid-2">
+        <div class="card" data-search="requisitos minimos cpu ram python windows">
+          <h3>Requisitos Mínimos</h3>
+          <ul>
+            <li><strong>SO:</strong> Windows 10/11 (64-bit), Linux o macOS</li>
+            <li><strong>Python:</strong> 3.11 o 3.12 (recomendado 3.12)</li>
+            <li><strong>CPU:</strong> 4 núcleos (Intel i5 / Ryzen 5 o superior)</li>
+            <li><strong>RAM:</strong> 8 GB mínimo (16 GB si usas Coqui XTTS-v2 o modelos locales)</li>
+            <li><strong>Audio:</strong> Micrófono y altavoces/audífonos</li>
+            <li><strong>Red:</strong> Conexión a internet para Gemini Live API</li>
+          </ul>
+        </div>
+        <div class="card" data-search="dependencias pyqt6 google genai webengine adblock">
+          <h3>Dependencias Principales</h3>
+          <ul>
+            <li><code>PyQt6</code> &amp; <code>PyQt6-WebEngine</code> (HUD, Live2D, TV Web, PayPal)</li>
+            <li><code>google-genai</code> (Motor conversacional Gemini Live)</li>
+            <li><code>sounddevice</code>, <code>numpy</code>, <code>miniaudio</code>, <code>edge-tts</code></li>
+            <li><code>requests</code>, <code>beautifulsoup4</code>, <code>psutil</code></li>
+            <li><code>opencv-python</code> (Visión en tiempo real)</li>
+            <li><code>adblock</code> (Brave Rust AdBlock para TV y Deportes)</li>
+            <li><em>Opcionales:</em> <code>coqui-tts</code>, <code>torch</code>, <code>torchaudio</code> (XTTS-v2 local)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSTALLER -->
+    <section id="installer">
+      <h2 class="sec-title">Instalador Oficial (Groovi Developer)</h2>
+      <p class="sec-sub">Configura dependencias, nombre, API Key de Gemini, voz y skin en minutos.</p>
+      <div class="code-wrap" data-search="instalador python installer.py instalar_viernes.bat">
+        <button class="copy-btn">Copiar</button>
+        <pre>git clone https://github.com/groovideveloper/viernes.git
+cd viernes
+py -3.12 installer.py
+# O en Windows haz doble clic en: instalar_viernes.bat</pre>
+      </div>
+    </section>
+
+    <!-- APIS -->
+    <section id="apis">
+      <h2 class="sec-title">APIs: Obligatoria vs Opcionales</h2>
+      <p class="sec-sub">Solo una clave API es obligatoria para arrancar Viernes; todas las demás son opcionales.</p>
+      <table data-search="api key gemini elevenlabs serpapi openweather spotify virustotal">
+        <thead>
+          <tr><th>Servicio</th><th>Estado</th><th>Función en Viernes</th><th>Dónde obtenerla</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Google Gemini API</strong></td>
+            <td><span class="pill green">OBLIGATORIA</span></td>
+            <td>Cerebro conversacional, voz en vivo, visión y ejecución de herramientas</td>
+            <td><a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--acc);">aistudio.google.com/apikey</a></td>
+          </tr>
+          <tr>
+            <td><strong>ElevenLabs</strong></td>
+            <td><span class="pill">Opcional</span></td>
+            <td>Síntesis de voz ultrarrápida Flash v2.5 (~200 ms)</td>
+            <td>elevenlabs.io</td>
+          </tr>
+          <tr>
+            <td><strong>SerpAPI</strong></td>
+            <td><span class="pill">Opcional</span></td>
+            <td>Búsqueda web avanzada y vuelos en tiempo real</td>
+            <td>serpapi.com</td>
+          </tr>
+          <tr>
+            <td><strong>OpenWeather</strong></td>
+            <td><span class="pill">Opcional</span></td>
+            <td>Widget de clima local y pronóstico extendido</td>
+            <td>openweathermap.org</td>
+          </tr>
+          <tr>
+            <td><strong>Spotify</strong></td>
+            <td><span class="pill">Opcional</span></td>
+            <td>Control inteligente de reproducción y listas</td>
+            <td>developer.spotify.com</td>
+          </tr>
+          <tr>
+            <td><strong>Home Assistant</strong></td>
+            <td><span class="pill">Opcional</span></td>
+            <td>Control domótico LAN avanzado</td>
+            <td>Instancia local (Token de larga duración)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="acc-item open" style="margin-top:16px;" data-search="como crear cuenta gemini api key paso a paso">
+        <button class="acc-head">Guía paso a paso: Cómo crear tu API Key gratuita de Gemini <span class="acc-icon">−</span></button>
+        <div class="acc-body">
+          <ol style="padding-left:18px; line-height:1.8;">
+            <li>Ingresa a <strong>https://aistudio.google.com/apikey</strong> e inicia sesión con tu cuenta de Google.</li>
+            <li>Haz clic en <strong>"Create API key"</strong> y selecciona o crea un proyecto de Google Cloud.</li>
+            <li>Copia la clave generada (empieza por <code>AIza...</code>).</li>
+            <li>Pégala directamente en el <strong>Instalador Oficial</strong> de Viernes (<code>installer.py</code>) o en <code>⚙ → Claves API</code> dentro del HUD.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIVE2D -->
+    <section id="live2d">
+      <h2 class="sec-title">Modelos Live2D y Cómo Instalar Nuevos</h2>
+      <p class="sec-sub">Motor PixiJS + Cubism Core embebido en Qt WebEngine con sincronización labial, expresiones y skins intercambiables.</p>
+
+      <div class="grid-2">
+        <div class="card" data-search="live2d edith pixijs cubism core skin_manager">
+          <h3>Arquitectura Live2D Nativa</h3>
+          <p>
+            Viernes renderiza el modelo <strong>Edith</strong> (y cualquier modelo compatible con Cubism 2/3/4) en
+            <code>core/live2d/</code> mediante <code>skin_manager.py</code>, reaccionando automáticamente a la amplitud de voz,
+            gestos e interrupciones.
+          </p>
+        </div>
+        <div class="card" data-search="instalar modelo live2d nuevo carpeta model3.json">
+          <h3>Cómo Instalar un Modelo Live2D Nuevo</h3>
+          <ol style="padding-left:18px; margin-top:8px;">
+            <li>Descarga un modelo Live2D completo (que contenga <code>*.model3.json</code>, texturas <code>.png</code> y físicas/moc3).</li>
+            <li>Coloca la carpeta del modelo dentro de <code>core/live2d/skins/&lt;nombre_del_modelo&gt;/</code> (o abre la carpeta desde <em>Presencia ▾ → Abrir carpeta de skins</em>).</li>
+            <li>En el HUD de Viernes abre <strong>Presencia ▾ → Skins Live2D</strong> y selecciona tu nuevo modelo al instante.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- HUD STUDIO -->
+    <section id="hud-studio">
+      <h2 class="sec-title">Personalización Total con HUD Studio</h2>
+      <p class="sec-sub">Cambia paletas completas, densidad, bordes, módulos visibles y fondos arquitectónicos en vivo.</p>
+      <div class="grid-3">
+        <div class="card" data-search="temas obsidian midnight emerald crimson amber monochrome">
+          <h3>6 Temas Profesionales</h3>
+          <p>Obsidian Glass Pro, Midnight Telemetry, Emerald Ops, Apex Crimson, Amber Studio y Stealth Monochrome + selector de acento libre.</p>
+        </div>
+        <div class="card" data-search="fondos aurora orbital malla neural penthouse comando loft">
+          <h3>Fondos y Ambiente</h3>
+          <p>4 shaders procedurales animados (Aurora, Estudio, Horizonte Orbital, Malla Neural) + 3 escenarios HD + soporte de wallpaper propio.</p>
+        </div>
+        <div class="card" data-search="layout preset enfoque cinema comando modulos">
+          <h3>Layout Modular</h3>
+          <p>Presets de 1 clic (Estudio, Enfoque, Cinema, Comando) y switches individuales para Clima, Diagnóstico, Voz, Noticias y Adjuntos.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- VOICES -->
+    <section id="voices">
+      <h2 class="sec-title">Motores de Voz (TTS) Disponibles</h2>
+      <p class="sec-sub">Elige entre latencia en la nube o síntesis local gratuita con clonación de voz.</p>
+      <div class="grid-2">
+        <div class="card" data-search="gemini live edge neural elevenlabs coqui xtts v2">
+          <h3>Motores Integrados</h3>
+          <ul>
+            <li><strong>Gemini Live (Nativo):</strong> 30 voces integradas + modulación acústica sin costo adicional a tu API.</li>
+            <li><strong>Edge Neural:</strong> Voces neurales gratuitas de Microsoft en español (MX, AR, ES, CO, CR) sin GPU.</li>
+            <li><strong>ElevenLabs Flash v2.5:</strong> Streaming de ultra baja latencia (~200 ms).</li>
+            <li><strong>Coqui XTTS-v2 (Local):</strong> Gratuito y offline vía <code>idiap/coqui-ai-TTS</code> con clonación de voz usando un <code>.wav</code> de 6–15s.</li>
+          </ul>
+        </div>
+        <div class="card" data-search="como cambiar voz personalizar asistente">
+          <h3>Cambio en Caliente</h3>
+          <p>
+            Puedes cambiar de motor desde <strong>⚙ → Personalizar asistente y voz</strong> o directamente durante la instalación inicial
+            en <code>installer.py</code>. Si un motor local falla, Viernes cambia automáticamente a Edge Neural como respaldo.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- GALLERY -->
+    <section id="gallery">
+      <h2 class="sec-title">Galería de Escenarios y Fondos</h2>
+      <p class="sec-sub">Haz clic en cualquier escenario incluido en Viernes para ampliarlo.</p>
+      <div class="gallery-grid">
+        <div class="shot-card" data-search="penthouse nocturno fondo">
+          <img src="assets/bg_penthouse.jpg" alt="Penthouse Nocturno" />
+          <div class="cap"><strong>Penthouse Nocturno</strong> — Escenario arquitectónico panorámico</div>
+        </div>
+        <div class="shot-card" data-search="puente comando fondo">
+          <img src="assets/bg_command.jpg" alt="Puente de Comando" />
+          <div class="cap"><strong>Puente de Comando</strong> — Estudio minimalista de alta tecnología</div>
+        </div>
+        <div class="shot-card" data-search="loft arquitectonico fondo">
+          <img src="assets/bg_loft.jpg" alt="Loft Arquitectónico" />
+          <div class="cap"><strong>Loft Arquitectónico</strong> — Iluminación cálida indirecta</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MEDIA -->
+    <section id="media" data-tab-group>
+      <h2 class="sec-title">Multimedia, TV, Deportes y Radio</h2>
+      <p class="sec-sub">Reproducción directa en el HUD con Brave AdBlock, opciones múltiples y visualizador.</p>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-tv">TV y Deportes en Vivo</button>
+        <button class="tab-btn" data-tab="tab-radio">Radio con Visualizador</button>
+        <button class="tab-btn" data-tab="tab-yt">YouTube &amp; Multimedia</button>
+      </div>
+      <div id="tab-tv" class="tab-panel active card" data-search="futbolenvivo agenda deportiva tvporinternet iptv pantalla completa">
+        <h3>TV Web, Deportes y Agenda Deportiva</h3>
+        <p>
+          Pide canales por voz (<em>"Ponme Cartoon Network"</em>, <em>"Pon ESPN en pantalla completa"</em>) o partidos en vivo
+          (<em>"Ponga el partido de Costa Rica vs Ecuador"</em>). Viernes consulta <code>futbolenvivo.top/api/agenda</code>,
+          detecta el canal y abre el embed limpio con Brave AdBlock y selector de opciones (Opción 1, 2, 3...).
+        </p>
+      </div>
+      <div id="tab-radio" class="tab-panel card" data-search="radio ondachannels besame costa rica random espanol visualizador">
+        <h3>Módulo de Radio (ondachannels.com + LATAM)</h3>
+        <p>
+          Pide emisoras específicas (<em>"Ponme Bésame de Costa Rica"</em>, <em>"Cadena SER"</em>) o una
+          <em>"radio random"</em> (siempre en español). Incluye visualizador de espectro multibanda a 30 FPS (0% CPU cuando se cierra).
+        </p>
+      </div>
+      <div id="tab-yt" class="tab-panel card" data-search="youtube video player musica">
+        <h3>YouTube y Reproductor Local</h3>
+        <p>Reproduce videos, música, streams HLS/MP4 y controla volumen, silencio y pantalla completa por voz o teclado.</p>
+      </div>
+    </section>
+
+    <!-- CLEAN YOUR TV -->
+    <section id="cleanyourtv">
+      <h2 class="sec-title">Clean Your TV (Limpieza Segura para Android TV)</h2>
+      <p class="sec-sub">Integración nativa de <code>udhaykumarbala/cleanyourtv-app</code> y <code>Gathin23/cleanyourtv</code>.</p>
+      <div class="card" data-search="clean your tv android tv adb wifi bloatware anuncios">
+        <h3>Flujo Guiado en 3 Pasos (100% Reversible)</h3>
+        <ol style="padding-left:18px; margin-top:8px;">
+          <li><strong>Conectar:</strong> Escanea tu Wi-Fi en busca de Android TVs (puerto ADB 5555) y te guía paso a paso con el control remoto.</li>
+          <li><strong>Analizar:</strong> Cruza los paquetes del TV contra 473 perfiles comunitarios clasificándolos en anuncios, telemetría y bloatware.</li>
+          <li><strong>Limpiar y Restaurar:</strong> Guarda un punto de restauración automático en <code>config/cleanyourtv_backups/</code> y desactiva de forma segura con <code>pm disable-user --user 0</code>.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- DOMOTICA -->
+    <section id="domotica">
+      <h2 class="sec-title">Viernes Device Control, Domótica y App Móvil</h2>
+      <p class="sec-sub">Control unificado de dispositivos en tu red local autorizada, hogares inteligentes y control remoto desde Android.</p>
+      <div class="grid-3">
+        <div class="card" data-search="device control ssdp mdns zeroconf upnp wol samsung lg roku chromecast">
+          <h3>Descubrimiento y Smart TVs</h3>
+          <p>Escaneo automático de la red local por <strong>SSDP, mDNS/Zeroconf y UPnP</strong>. Controla televisores <strong>Android TV / Google TV, Samsung Tizen, LG webOS, Roku y Chromecast</strong>, además de encendido remoto con <strong>Wake-on-LAN</strong>.</p>
+        </div>
+        <div class="card" data-search="home assistant tinytuya smart life mqtt domotica luces">
+          <h3>Home Assistant, Tuya y MQTT</h3>
+          <p>Conexión directa con <strong>Home Assistant Core</strong> (REST API), bombillas/enchufes <strong>Tuya / Smart Life</strong> (<code>tinytuya</code>) y dispositivos IoT o impresoras mediante <strong>MQTT</strong> (<code>paho-mqtt</code>).</p>
+        </div>
+        <div class="card" data-search="apk android control remoto fast api dashboard movil qr">
+          <h3>Control Remoto Android &amp; Dashboard</h3>
+          <p>Servidor FastAPI seguro con TLS y código QR para emparejar tu teléfono o la app Android nativa de Viernes y ejecutar comandos de voz o teclado desde cualquier lugar de tu red.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- AI AGENTS & CODE -->
+    <section id="ai-agents">
+      <h2 class="sec-title">Agentes IA, Desarrollo de Software y Memoria Persistente</h2>
+      <p class="sec-sub">Orquestación multi-agente, ingeniería de código autónoma, memoria a largo plazo y automatización visual de interfaces.</p>
+      <div class="grid-3">
+        <div class="card" data-search="openhands dev_agent code_helper project_intelligence programar">
+          <h3>OpenHands &amp; Dev Agent</h3>
+          <p>Ejecuta tareas de ingeniería de software, análisis de repositorios (<code>project_intelligence</code>), depuración y generación de código asistida (<code>code_helper</code>, <code>dev_agent</code>, <code>openhands_agent</code>).</p>
+        </div>
+        <div class="card" data-search="langgraph windmill workflows grafos automatizacion">
+          <h3>LangGraph &amp; Windmill</h3>
+          <p>Orquestación de flujos agénticos con grafos de estado (<code>langgraph_agent</code>) y ejecución de scripts/workflows de automatización empresarial mediante <strong>Windmill SDK</strong> (<code>windmill_runner</code>).</p>
+        </div>
+        <div class="card" data-search="letta memgpt memoria contexto aprendizaje personal">
+          <h3>Memoria Letta (MemGPT) y Aprendizaje</h3>
+          <p>Memoria episódica y semántica persistente en SQLite FTS5 + Letta (<code>letta_memory</code>), aprendizaje continuo (<code>learning_engine</code>) y perfiles de personalidad dinámicos (<code>change_personality</code>).</p>
+        </div>
+        <div class="card" data-search="midscene ui gui playwright browser_control automatizacion">
+          <h3>Midscene UI &amp; Playwright</h3>
+          <p>Automatización visual de interfaces web y de escritorio con <strong>Midscene</strong> (<code>midscene_ui</code>) y control completo de navegador con <strong>Playwright</strong> (<code>browser_control</code>).</p>
+        </div>
+        <div class="card" data-search="crawl4ai scraper web_research extraer datos">
+          <h3>Crawl4AI &amp; Web Research</h3>
+          <p>Extracción estructurada de páginas web y documentación para IA con <strong>Crawl4AI</strong> (<code>crawl4ai_scraper</code>) e investigación profunda multi-fuente (<code>web_research</code>, <code>web_page_reader</code>).</p>
+        </div>
+        <div class="card" data-search="openamika companion local_ai_service vrm vmc holo">
+          <h3>OpenAmika, VRM 3D y Servicio Local</h3>
+          <p>Soporte para avatares <strong>Live2D, VRM 3D y VMC</strong>, motor compañero (<code>openamika_companion</code>), pantallas holográficas (<code>holo_screens</code>) e integración con modelos locales (<code>local_ai_service</code>).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- VISION, TRANSLATION & SECURITY -->
+    <section id="vision-audio">
+      <h2 class="sec-title">Visión por Computadora, Traducción en Vivo y Seguridad</h2>
+      <p class="sec-sub">Percepción visual en tiempo real, biometría vocal y protección del sistema.</p>
+      <div class="grid-3">
+        <div class="card" data-search="opencv_vision camara deteccion screen_processor pantalla">
+          <h3>OpenCV Vision &amp; Screen Processor</h3>
+          <p>Análisis de cámara en tiempo real con <strong>OpenCV</strong> (detección de presencia, gestos y objetos) y lectura instantánea de lo que ocurre en tu pantalla (<code>screen_processor</code>).</p>
+        </div>
+        <div class="card" data-search="realtime_translation traduccion simultanea idiomas voz">
+          <h3>Traducción Simultánea en Tiempo Real</h3>
+          <p>Traduce conversaciones y audio en vivo entre múltiples idiomas (<code>realtime_translation</code>) con reproducción inmediata en el motor de voz seleccionado.</p>
+        </div>
+        <div class="card" data-search="voice_security biometria vocal wake_word palabra activacion">
+          <h3>Biometría Vocal &amp; Wake Word</h3>
+          <p>Verificación de identidad por huella vocal usando distancia coseno (<code>voice_security</code>) y detección continua de palabra de activación (<code>wake_word</code>).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRODUCTIVITY, BOOKS & FINANCE -->
+    <section id="productivity">
+      <h2 class="sec-title">Productividad, Libros, Documentos, Finanzas y Viajes</h2>
+      <p class="sec-sub">Herramientas completas para estudiar, analizar datos, gestionar archivos y planificar tu día.</p>
+      <div class="grid-3">
+        <div class="card" data-search="learn_book recall_book_knowledge pdf docx pptx file_processor">
+          <h3>Lectura de Libros y Documentos</h3>
+          <p>Aprende libros completos en PDF (<code>learn_book</code>) para responder preguntas después (<code>recall_book_knowledge</code>), y procesa <strong>PDF, Word (.docx), PowerPoint (.pptx) y Excel</strong> (<code>file_processor</code>).</p>
+        </div>
+        <div class="card" data-search="financial_analytics data_analyzer graficos estadisticas excel">
+          <h3>Analítica Financiera y Datos</h3>
+          <p>Análisis estadístico de datasets y hojas de cálculo (<code>data_analyzer</code>) junto con seguimiento y análisis financiero (<code>financial_analytics</code>).</p>
+        </div>
+        <div class="card" data-search="flight_finder weather_report current_time reminder vuelos clima">
+          <h3>Vuelos, Clima, Hora y Recordatorios</h3>
+          <p>Búsqueda de vuelos (<code>flight_finder</code>), reportes meteorológicos (<code>weather_report</code>), hora mundial (<code>current_time</code>) y recordatorios persistentes (<code>reminder</code>).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMMUNICATIONS & PROACTIVITY -->
+    <section id="communications">
+      <h2 class="sec-title">Comunicaciones, Multimedia PC y Proactividad</h2>
+      <p class="sec-sub">Mantente conectado, controla tus medios y deja que Viernes trabaje por ti en segundo plano.</p>
+      <div class="grid-3">
+        <div class="card" data-search="gmail_controller send_message whatsapp telegram social_media">
+          <h3>Gmail, Mensajería y Redes</h3>
+          <p>Lee, redacta y envía correos con <strong>Gmail OAuth / SMTP</strong> (<code>gmail_controller</code>), envía mensajes (<code>send_message</code>), gestiona redes sociales (<code>social_media</code>) y recibe notificaciones entrantes (<code>inbound_notifications</code>).</p>
+        </div>
+        <div class="card" data-search="youtube_video video_player now_playing spotify gsmtc">
+          <h3>YouTube, Video Local y Now Playing</h3>
+          <p>Reproduce videos y streams con <code>yt-dlp</code> (<code>video_player</code>), resume videos de YouTube mediante transcripciones (<code>youtube_video</code>) y detecta música en Spotify/Windows GSMTC (<code>now_playing</code>).</p>
+        </div>
+        <div class="card" data-search="proactive background_monitor gpu_taskman system_diagnostics game_updater">
+          <h3>Proactividad, GPU y Diagnóstico</h3>
+          <p>Monitor en segundo plano (<code>background_monitor</code>), sugerencias proactivas (<code>proactive</code>), gestor de tareas GPU NVIDIA (<code>gpu_taskman</code>), diagnósticos del sistema (<code>system_diagnostics</code>) y actualizador de juegos (<code>game_updater</code>).</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPOS -->
+    <section id="repos">
+      <h2 class="sec-title">Repositorios y Motores Integrados de Forma Nativa</h2>
+      <p class="sec-sub">Ecosistema open-source unificado dentro de la arquitectura de Viernes.</p>
+      <div class="grid-3">
+        <div class="card" data-search="openhands langgraph letta windmill aion-2">
+          <h3>Agentes IA y Workflows</h3>
+          <ul>
+            <li><strong>All-Hands-AI/OpenHands</strong> — Agente de ingeniería de código</li>
+            <li><strong>langchain-ai/langgraph</strong> — Orquestación por grafos</li>
+            <li><strong>letta-ai/letta</strong> — Memoria persistente tipo MemGPT</li>
+            <li><strong>windmill-labs/windmill</strong> — Ejecución de workflows</li>
+            <li><strong>aion-2</strong> — Capacidades agénticas nativas</li>
+          </ul>
+        </div>
+        <div class="card" data-search="crawl4ai midscene openamika live2d vrm">
+          <h3>Web, GUI y Avatares</h3>
+          <ul>
+            <li><strong>unclecode/crawl4ai</strong> — Scraping web estructurado para LLM</li>
+            <li><strong>web-infra-dev/midscene</strong> — Automatización visual de UI</li>
+            <li><strong>OpenAmika</strong> — Motor de compañero interactivo</li>
+            <li><strong>Live2D Cubism &amp; VRM/VMC</strong> — Avatares 2D y 3D</li>
+          </ul>
+        </div>
+        <div class="card" data-search="coqui-ai-tts iptv-org ondachannels cleanyourtv brave adblock home-assistant tinytuya">
+          <h3>Voz, TV, Domótica y Protección</h3>
+          <ul>
+            <li><strong>idiap/coqui-ai-TTS</strong> — Clonación XTTS-v2 local</li>
+            <li><strong>iptv-org &amp; OndaChannels</strong> — TV y Radio global en vivo</li>
+            <li><strong>udhaykumarbala/cleanyourtv-app</strong> — Debloat Android TV</li>
+            <li><strong>brave/adblock-rust</strong> — Bloqueador de anuncios nativo</li>
+            <li><strong>home-assistant/core &amp; TinyTuya</strong> — Domótica LAN</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACTIONS -->
+    <section id="actions">
+      <h2 class="sec-title">Catálogo Completo de Acciones (57 Módulos)</h2>
+      <p class="sec-sub">Filtra por categoría o usa el buscador superior para encontrar cualquier módulo en <code>actions/</code> y cómo pedirlo por voz.</p>
+
+      <div data-filter-group>
+        <div class="tabs" style="margin-bottom:16px;">
+          <button class="tab-btn active" data-filter="all">Todas (57)</button>
+          <button class="tab-btn" data-filter="pc">Control PC &amp; Sistema</button>
+          <button class="tab-btn" data-filter="ia">IA, Código &amp; Memoria</button>
+          <button class="tab-btn" data-filter="media">Multimedia, TV &amp; Radio</button>
+          <button class="tab-btn" data-filter="prod">Productividad &amp; Web</button>
+          <button class="tab-btn" data-filter="vision">Visión, Voz &amp; Seguridad</button>
+          <button class="tab-btn" data-filter="domo">Domótica &amp; Dispositivos</button>
+          <button class="tab-btn" data-filter="comm">Comunicaciones &amp; Proactivo</button>
+        </div>
+
+        <div class="grid-3">
+          <!-- PC & Sistema -->
+          <div class="card" data-cat="pc" data-search="computer_control mouse teclado clicks escribir">
+            <span class="tag">Control PC</span>
+            <h3>computer_control.py</h3>
+            <p>Controla ratón, teclado, atajos, clics y escritura automatizada.<br><em>Ej: "Haz clic en guardar y escribe hola mundo"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="computer_settings volumen brillo wifi bluetooth ajustes">
+            <span class="tag">Control PC</span>
+            <h3>computer_settings.py</h3>
+            <p>Ajusta volumen, brillo, modo oscuro, energía y configuración de Windows.<br><em>Ej: "Baja el volumen al 30%"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="desktop escritorios ventanas minimizar">
+            <span class="tag">Control PC</span>
+            <h3>desktop.py</h3>
+            <p>Gestiona escritorios virtuales, ventanas activas y fondos de escritorio.<br><em>Ej: "Minimiza todas las ventanas"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="open_app abrir programas aplicaciones ejecutar">
+            <span class="tag">Control PC</span>
+            <h3>open_app.py</h3>
+            <p>Abre cualquier aplicación instalada en tu equipo al instante.<br><em>Ej: "Abre Visual Studio Code"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="file_controller archivos carpetas copiar mover borrar papelera">
+            <span class="tag">Control PC</span>
+            <h3>file_controller.py</h3>
+            <p>Crea, mueve, renombra, busca y envía archivos a la papelera de forma segura.<br><em>Ej: "Organiza mis descargas por tipo"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="file_processor pdf docx pptx leer documentos">
+            <span class="tag">Control PC</span>
+            <h3>file_processor.py</h3>
+            <p>Extrae texto y tablas de PDFs, documentos Word (.docx) y PowerPoint (.pptx).<br><em>Ej: "Resume este archivo PDF"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="system_monitor cpu ram disco red temperaturas">
+            <span class="tag">Control PC</span>
+            <h3>system_monitor.py</h3>
+            <p>Monitorea uso de CPU, RAM, disco, red y procesos pesados.<br><em>Ej: "¿Qué está consumiendo más RAM?"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="system_diagnostics diagnostico salud pc errores">
+            <span class="tag">Control PC</span>
+            <h3>system_diagnostics.py</h3>
+            <p>Ejecuta diagnósticos de salud del sistema, red y servicios.<br><em>Ej: "Haz un diagnóstico completo del equipo"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="gpu_taskman nvidia vram procesos gpu">
+            <span class="tag">Control PC</span>
+            <h3>gpu_taskman.py</h3>
+            <p>Inspecciona carga, temperatura, VRAM y procesos en GPUs NVIDIA.<br><em>Ej: "¿Cuánta VRAM está usando la GPU?"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="game_updater steam juegos actualizar">
+            <span class="tag">Control PC</span>
+            <h3>game_updater.py</h3>
+            <p>Verifica y automatiza actualizaciones de juegos (Steam y launchers).<br><em>Ej: "Revisa si hay actualizaciones de juegos"</em></p>
+          </div>
+          <div class="card" data-cat="pc" data-search="browser_control playwright navegador pestañas url">
+            <span class="tag">Control PC</span>
+            <h3>browser_control.py</h3>
+            <p>Controla navegadores con Playwright: abre URLs, hace clic y rellena formularios.<br><em>Ej: "Abre GitHub y busca Mark-LV"</em></p>
+          </div>
+
+          <!-- IA, Código & Memoria -->
+          <div class="card" data-cat="ia" data-search="openhands_agent programar repositorio agente autonomo">
+            <span class="tag">IA &amp; Código</span>
+            <h3>openhands_agent.py</h3>
+            <p>Delega tareas complejas de programación y edición de código a OpenHands.<br><em>Ej: "Usa OpenHands para corregir los tests"</em></p>
+          </div>
+          <div class="card" data-cat="ia" data-search="dev_agent desarrollo codigo arquitectura">
+            <span class="tag">IA &amp; Código</span>
+            <h3>dev_agent.py</h3>
+            <p>Asistente de desarrollo para generar módulos, scripts y parches.<br><em>Ej: "Crea un script en Python para respaldar fotos"</em></p>
+          </div>
+          <div class="card" data-cat="ia" data-search="code_helper depurar explicar refactorizar codigo">
+            <span class="tag">IA &amp; Código</span>
+            <h3>code_helper.py</h3>
+            <p>Analiza fragmentos de código, explica errores y propone refactorizaciones.<br><em>Ej: "Explica qué hace esta función"</em></p>
+          </div>
+          <div class="card" data-cat="ia" data-search="project_intelligence analizar proyecto estructura archivos">
+            <span class="tag">IA &amp; Código</span>
+            <h3>project_intelligence.py</h3>
+            <p>Indexa y comprende la arquitectura completa de proyectos de software.<br><em>Ej: "Analiza la estructura de este repositorio"</em></p>
+          </div>
+          <div class="card" data-cat="ia" data-search="langgraph_agent orquestacion grafos multiagente">
+            <span class="tag">IA &amp; Código</span>
+            <h3>langgraph_agent.py</h3>
+            <p>Ejecuta flujos multi-paso con estado usando LangGraph.<br><em>Ej: "Ejecuta un flujo de investigación con LangGraph"</em></p>
+          </div>
+          <div class="card" data-cat="ia" data-search="windmill_runner workflows scripts automatizacion">
+            <span class="tag">IA &amp; Código</span>
+            <h3>windmill_runner.py</h3>
+            <p>Conecta y ejecuta workflows y scripts remotos/locales en Windmill.<br><em>Ej: "Corre el workflow diario en Windmill"</em></p>
+          </div>
+          <div class="card" data-cat="ia" data-search="letta_memory memoria largo plazo memgpt recordar">
+            <span class="tag">IA &amp; Código</span>
+            <h3>letta_memory.py</h3>
+            <p>Memoria persistente a largo plazo estilo MemGPT con búsqueda FTS5.<br><em>Ej: "Recuerda que mi proyecto principal usa PyQt6"</em></p>
+          </div>
+          <div class="card" data-cat="ia" data-search="midscene_ui automatizacion visual interfaz">
+            <span class="tag">IA &amp; Código</span>
+            <h3>midscene_ui.py</h3>
+            <p>Interactúa con interfaces gráficas mediante visión y Midscene.js.<br><em>Ej: "Usa Midscene para completar el formulario"</em></p>
+          </div>
+          <div class="card" data-cat="ia" data-search="openamika_companion avatar compania emociones">
+            <span class="tag">IA &amp; Código</span>
+            <h3>openamika_companion.py</h3>
+            <p>Gestiona estado emocional, expresiones y comportamiento del compañero.<br><em>Ej: "Ponte en modo entusiasta"</em></p>
+          </div>
+          <div class="card" data-cat="ia" data-search="change_personality personalidad tono estilo">
+            <span class="tag">IA &amp; Código</span>
+            <h3>change_personality.py</h3>
+            <p>Cambia la personalidad, tono y rol de Viernes en caliente.<br><em>Ej: "Cambia a personalidad profesional técnica"</em></p>
+          </div>
+
+          <!-- Multimedia, TV & Radio -->
+          <div class="card" data-cat="media" data-search="iptv_player tv deportes futbolenvivo canales adblock">
+            <span class="tag">Multimedia &amp; TV</span>
+            <h3>iptv_player.py</h3>
+            <p>TV Web, IPTV-org, AdBlock nativo y búsqueda automática de partidos en FutbolEnVivo.<br><em>Ej: "Ponme el partido de Costa Rica vs Ecuador"</em></p>
+          </div>
+          <div class="card" data-cat="media" data-search="radio_player radio emisoras ondachannels visualizador">
+            <span class="tag">Multimedia &amp; TV</span>
+            <h3>radio_player.py</h3>
+            <p>Emisoras mundiales en vivo con visualizador de espectro y radios aleatorias en español.<br><em>Ej: "Ponme Bésame de Costa Rica"</em></p>
+          </div>
+          <div class="card" data-cat="media" data-search="cleanyourtv android tv adb debloat limpiar">
+            <span class="tag">Multimedia &amp; TV</span>
+            <h3>cleanyourtv.py</h3>
+            <p>Optimización y limpieza nativa de Android TV / Google TV vía ADB con respaldos.<br><em>Ej: "Vamos a hacerle un clean a mi televisor"</em></p>
+          </div>
+          <div class="card" data-cat="media" data-search="video_player reproducir video mp4 mkv url">
+            <span class="tag">Multimedia &amp; TV</span>
+            <h3>video_player.py</h3>
+            <p>Reproductor de video integrado en el HUD para archivos locales y URLs.<br><em>Ej: "Reproduce este video en el HUD"</em></p>
+          </div>
+          <div class="card" data-cat="media" data-search="youtube_video youtube buscar resumir transcripcion">
+            <span class="tag">Multimedia &amp; TV</span>
+            <h3>youtube_video.py</h3>
+            <p>Busca, reproduce y resume videos de YouTube usando sus transcripciones.<br><em>Ej: "Resume este video de YouTube"</em></p>
+          </div>
+          <div class="card" data-cat="media" data-search="now_playing spotify musica cancion sonando">
+            <span class="tag">Multimedia &amp; TV</span>
+            <h3>now_playing.py</h3>
+            <p>Detecta y controla la música/multimedia que suena en Windows o Spotify.<br><em>Ej: "¿Qué canción está sonando?"</em></p>
+          </div>
+
+          <!-- Productividad & Web -->
+          <div class="card" data-cat="prod" data-search="web_search buscar internet google duckduckgo serpapi">
+            <span class="tag">Productividad</span>
+            <h3>web_search.py</h3>
+            <p>Búsqueda web rápida con DuckDuckGo / SerpAPI y síntesis inmediata.<br><em>Ej: "Busca las últimas noticias de IA"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="web_research investigacion profunda fuentes reporte">
+            <span class="tag">Productividad</span>
+            <h3>web_research.py</h3>
+            <p>Investigación profunda multi-página con comparación de fuentes.<br><em>Ej: "Investiga a fondo las novedades de PyQt6"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="web_page_reader leer pagina web articulo url">
+            <span class="tag">Productividad</span>
+            <h3>web_page_reader.py</h3>
+            <p>Lee y extrae el contenido limpio de cualquier URL o artículo.<br><em>Ej: "Lee y resume esta página web"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="crawl4ai_scraper scraping extraer markdown web">
+            <span class="tag">Productividad</span>
+            <h3>crawl4ai_scraper.py</h3>
+            <p>Rastreo y extracción estructurada en Markdown con Crawl4AI.<br><em>Ej: "Extrae la documentación de esta URL"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="learn_book estudiar libro pdf indexar">
+            <span class="tag">Productividad</span>
+            <h3>learn_book.py</h3>
+            <p>Indexa y memoriza libros completos para consultas futuras.<br><em>Ej: "Aprende este libro de Python"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="recall_book_knowledge consultar libro memoria">
+            <span class="tag">Productividad</span>
+            <h3>recall_book_knowledge.py</h3>
+            <p>Responde preguntas precisas citando conocimiento de libros aprendidos.<br><em>Ej: "¿Qué dice el libro sobre concurrencia?"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="data_analyzer datos csv excel estadisticas">
+            <span class="tag">Productividad</span>
+            <h3>data_analyzer.py</h3>
+            <p>Analiza tablas, CSV y hojas Excel con métricas y hallazgos clave.<br><em>Ej: "Analiza las ventas de este CSV"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="financial_analytics finanzas acciones presupuesto">
+            <span class="tag">Productividad</span>
+            <h3>financial_analytics.py</h3>
+            <p>Análisis financiero, métricas de rendimiento y cálculos económicos.<br><em>Ej: "Analiza mis gastos de este mes"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="flight_finder vuelos viajes precios aerolineas">
+            <span class="tag">Productividad</span>
+            <h3>flight_finder.py</h3>
+            <p>Busca opciones de vuelos, rutas y precios por fechas.<br><em>Ej: "Busca vuelos de San José a Madrid"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="weather_report clima tiempo temperatura pronostico">
+            <span class="tag">Productividad</span>
+            <h3>weather_report.py</h3>
+            <p>Pronóstico meteorológico actual y extendido por ciudad.<br><em>Ej: "¿Cómo va a estar el clima hoy?"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="current_time hora fecha zona horaria">
+            <span class="tag">Productividad</span>
+            <h3>current_time.py</h3>
+            <p>Consulta la hora y fecha actual en cualquier zona horaria.<br><em>Ej: "¿Qué hora es en Tokio?"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="reminder recordatorio alarma tarea agenda">
+            <span class="tag">Productividad</span>
+            <h3>reminder.py</h3>
+            <p>Crea y gestiona recordatorios y avisos programados.<br><em>Ej: "Recuérdame llamar al cliente a las 4 PM"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="meeting_recorder reunion grabar minutas zoom meet teams">
+            <span class="tag">Productividad</span>
+            <h3>meeting_recorder.py</h3>
+            <p>Graba reuniones, identifica hablantes y genera minutas Markdown con tareas pendientes.<br><em>Ej: "Graba la reunión de diseño y al final resúmela"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="local_rag segundo cerebro indexar archivos codigo sqlite fts5">
+            <span class="tag">Productividad</span>
+            <h3>local_rag.py</h3>
+            <p>Segundo Cerebro RAG local en SQLite FTS5 con cita exacta de archivo y líneas.<br><em>Ej: "Indexa mi carpeta proyectos y busca dónde está el login"</em></p>
+          </div>
+          <div class="card" data-cat="prod" data-search="study_flashcards anki flashcards estudio repaso voz">
+            <span class="tag">Productividad</span>
+            <h3>study_flashcards.py</h3>
+            <p>Modo Estudio estilo Anki con repaso espaciado y evaluación por voz.<br><em>Ej: "Crea flashcards de este PDF y pregúntame"</em></p>
+          </div>
+          <div class="card" data-cat="vision" data-search="screen_recall historial visual pantalla rewind local">
+            <span class="tag">Visión &amp; Voz</span>
+            <h3>screen_recall.py</h3>
+            <p>Historial visual de pantalla 100% local (estilo Rewind/Recall) con búsqueda.<br><em>Ej: "¿Qué estaba viendo hoy sobre PyQt6?"</em></p>
+          </div>
+
+          <!-- Visión, Voz & Seguridad -->
+          <div class="card" data-cat="vision" data-search="opencv_vision camara vision computadora objetos">
+            <span class="tag">Visión &amp; Voz</span>
+            <h3>opencv_vision.py</h3>
+            <p>Visión por computadora en tiempo real mediante cámara y OpenCV.<br><em>Ej: "Activa la visión por cámara y dime qué ves"</em></p>
+          </div>
+          <div class="card" data-cat="vision" data-search="screen_processor captura pantalla leer ocr">
+            <span class="tag">Visión &amp; Voz</span>
+            <h3>screen_processor.py</h3>
+            <p>Captura y analiza lo que está en tu pantalla al instante.<br><em>Ej: "Mira mi pantalla y dime qué error sale"</em></p>
+          </div>
+          <div class="card" data-cat="vision" data-search="realtime_translation traducir idiomas en vivo">
+            <span class="tag">Visión &amp; Voz</span>
+            <h3>realtime_translation.py</h3>
+            <p>Traducción simultánea bidireccional de voz y texto.<br><em>Ej: "Traduce al inglés lo que diga"</em></p>
+          </div>
+          <div class="card" data-cat="vision" data-search="voice_security biometria voz autenticar">
+            <span class="tag">Visión &amp; Voz</span>
+            <h3>voice_security.py</h3>
+            <p>Autenticación biométrica por voz comparando perfiles guardados.<br><em>Ej: "Verifica mi identidad por voz"</em></p>
+          </div>
+          <div class="card" data-cat="vision" data-search="repeat_last_said repetir ultima respuesta voz">
+            <span class="tag">Visión &amp; Voz</span>
+            <h3>repeat_last_said.py</h3>
+            <p>Repite con claridad la última respuesta hablada por Viernes.<br><em>Ej: "Repite lo último que dijiste"</em></p>
+          </div>
+
+          <!-- Domótica & Dispositivos -->
+          <div class="card" data-cat="domo" data-search="smart_home luces enchufes casa inteligente">
+            <span class="tag">Domótica</span>
+            <h3>smart_home.py</h3>
+            <p>Controla dispositivos inteligentes en tu hogar (luces, tomas, escenas).<br><em>Ej: "Apaga las luces de la sala"</em></p>
+          </div>
+          <div class="card" data-cat="domo" data-search="home_assistant hass automatizaciones entidades">
+            <span class="tag">Domótica</span>
+            <h3>home_assistant.py</h3>
+            <p>Conecta con tu instancia de Home Assistant Core para operar entidades y escenas.<br><em>Ej: "Activa el modo cine en Home Assistant"</em></p>
+          </div>
+          <div class="card" data-cat="domo" data-search="device_control tv lan ssdp mdns wol">
+            <span class="tag">Domótica</span>
+            <h3>device_control.py</h3>
+            <p>Descubre y controla televisores y equipos LAN vía SSDP/mDNS/ADB/WOL.<br><em>Ej: "Enciende el televisor del cuarto"</em></p>
+          </div>
+
+          <!-- Comunicaciones & Proactividad -->
+          <div class="card" data-cat="comm" data-search="gmail_controller correo email leer enviar">
+            <span class="tag">Comunicaciones</span>
+            <h3>gmail_controller.py</h3>
+            <p>Lee, busca, resume y envía correos con Gmail OAuth o SMTP.<br><em>Ej: "Revisa mis correos sin leer de hoy"</em></p>
+          </div>
+          <div class="card" data-cat="comm" data-search="send_message whatsapp telegram mensaje">
+            <span class="tag">Comunicaciones</span>
+            <h3>send_message.py</h3>
+            <p>Envía mensajes rápidos a contactos mediante plataformas vinculadas.<br><em>Ej: "Manda un mensaje a Carlos diciendo que ya voy"</em></p>
+          </div>
+          <div class="card" data-cat="comm" data-search="inbound_notifications notificaciones entrantes avisos">
+            <span class="tag">Comunicaciones</span>
+            <h3>inbound_notifications.py</h3>
+            <p>Centraliza, filtra y anuncia notificaciones entrantes importantes.<br><em>Ej: "¿Qué notificaciones nuevas tengo?"</em></p>
+          </div>
+          <div class="card" data-cat="comm" data-search="social_media redes sociales publicar consultar">
+            <span class="tag">Comunicaciones</span>
+            <h3>social_media.py</h3>
+            <p>Asistencia para consulta y gestión de contenido en redes sociales.<br><em>Ej: "Prepara un post para anunciar el lanzamiento"</em></p>
+          </div>
+          <div class="card" data-cat="comm" data-search="proactive sugerencias automaticas proactividad">
+            <span class="tag">Proactivo</span>
+            <h3>proactive.py</h3>
+            <p>Motor de iniciativas y sugerencias contextuales según tu actividad.<br><em>Ej: "Activa el modo proactivo"</em></p>
+          </div>
+          <div class="card" data-cat="comm" data-search="background_monitor monitor segundo plano alertas">
+            <span class="tag">Proactivo</span>
+            <h3>background_monitor.py</h3>
+            <p>Vigila métricas, tareas y eventos en segundo plano sin estorbar.<br><em>Ej: "Avísame si el CPU pasa del 90%"</em></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLUGINS (41) -->
+    <section id="plugins">
+      <h2 class="sec-title">Catálogo Completo de Plugins Modulares (41 Plugins)</h2>
+      <p class="sec-sub">Extensiones listas para usar en <code>plugins/</code>. Se cargan dinámicamente con <code>core/plugin_loader.py</code> y también puedes crear los tuyos a partir de <code>_template.py</code>.</p>
+
+      <div data-filter-group>
+        <div class="tabs" style="margin-bottom:16px;">
+          <button class="tab-btn active" data-filter="all">Todos (41)</button>
+          <button class="tab-btn" data-filter="sec">Seguridad &amp; Red</button>
+          <button class="tab-btn" data-filter="dev">Dev &amp; Utilidades</button>
+          <button class="tab-btn" data-filter="sys">Sistema &amp; Hardware</button>
+          <button class="tab-btn" data-filter="life">Bienestar, Ocio &amp; Media</button>
+        </div>
+
+        <div class="grid-3">
+          <!-- Seguridad & Red -->
+          <div class="card" data-cat="sec" data-search="virustotal_file_scanner malware antivirus analizar archivo">
+            <span class="tag">Seguridad</span>
+            <h4>virustotal_file_scanner.py</h4>
+            <p>Analiza archivos y URLs sospechosas con VirusTotal antes de abrirlos.</p>
+          </div>
+          <div class="card" data-cat="sec" data-search="privacy_lock bloquear pantalla privacidad">
+            <span class="tag">Seguridad</span>
+            <h4>privacy_lock.py</h4>
+            <p>Bloqueo instantáneo de privacidad y pantalla por comando de voz.</p>
+          </div>
+          <div class="card" data-cat="sec" data-search="password_vault_generator contraseñas seguras boveda">
+            <span class="tag">Seguridad</span>
+            <h4>password_vault_generator.py</h4>
+            <p>Genera contraseñas criptográficamente seguras y gestiona bóveda cifrada.</p>
+          </div>
+          <div class="card" data-cat="sec" data-search="webcam_sentinel camara movimiento vigilancia">
+            <span class="tag">Seguridad</span>
+            <h4>webcam_sentinel.py</h4>
+            <p>Centinela de cámara web con detección de movimiento y alertas.</p>
+          </div>
+          <div class="card" data-cat="sec" data-search="local_network_auditor red lan escaneo puertos dispositivos">
+            <span class="tag">Red</span>
+            <h4>local_network_auditor.py</h4>
+            <p>Audita dispositivos conectados y puertos abiertos en tu red local.</p>
+          </div>
+          <div class="card" data-cat="sec" data-search="network_diagnostic ping dns latencia internet">
+            <span class="tag">Red</span>
+            <h4>network_diagnostic.py</h4>
+            <p>Diagnóstico completo de conectividad, DNS, ping y rutas.</p>
+          </div>
+          <div class="card" data-cat="sec" data-search="speedtest_pro velocidad internet descarga subida ping">
+            <span class="tag">Red</span>
+            <h4>speedtest_pro.py</h4>
+            <p>Mide velocidad de descarga, subida y latencia de tu conexión.</p>
+          </div>
+          <div class="card" data-cat="sec" data-search="whois_domain_dns_lookup dominio whois dns registros">
+            <span class="tag">Red</span>
+            <h4>whois_domain_dns_lookup.py</h4>
+            <p>Consulta registros DNS (A, MX, TXT, NS) y metadatos WHOIS de dominios.</p>
+          </div>
+          <div class="card" data-cat="sec" data-search="url_unmasker enlaces acortados redirecciones">
+            <span class="tag">Seguridad</span>
+            <h4>url_unmasker.py</h4>
+            <p>Desenmascara enlaces acortados y revela su destino real antes de abrirlos.</p>
+          </div>
+          <div class="card" data-cat="sec" data-search="temp_mail_burner correo temporal desechable">
+            <span class="tag">Privacidad</span>
+            <h4>temp_mail_burner.py</h4>
+            <p>Crea bandejas de correo temporal desechable para registros rápidos.</p>
+          </div>
+
+          <!-- Dev & Utilidades -->
+          <div class="card" data-cat="dev" data-search="git_assistant git commit branch status diff">
+            <span class="tag">Dev</span>
+            <h4>git_assistant.py</h4>
+            <p>Asistente Git por voz: status, commits, ramas y revisión de diffs.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="github_trending_radar repositorios tendencia github">
+            <span class="tag">Dev</span>
+            <h4>github_trending_radar.py</h4>
+            <p>Descubre los repositorios más populares del día/semana en GitHub.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="error_explainer stacktrace depurar errores">
+            <span class="tag">Dev</span>
+            <h4>error_explainer.py</h4>
+            <p>Explica stacktraces y mensajes de error complejos con solución directa.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="quick_regex_tester regex expresiones regulares">
+            <span class="tag">Dev</span>
+            <h4>quick_regex_tester.py</h4>
+            <p>Prueba y valida expresiones regulares contra texto en segundos.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="clipboard_history_vault portapapeles historial">
+            <span class="tag">Utilidad</span>
+            <h4>clipboard_history_vault.py</h4>
+            <p>Guarda y busca en el historial de todo lo que copias al portapapeles.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="clipboard_translator traducir portapapeles">
+            <span class="tag">Utilidad</span>
+            <h4>clipboard_translator.py</h4>
+            <p>Traduce al instante el texto que tengas copiado en el portapapeles.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="pdf_summary_extractor pdf resumen texto">
+            <span class="tag">Documentos</span>
+            <h4>pdf_summary_extractor.py</h4>
+            <p>Extrae texto y genera resúmenes ejecutivos de archivos PDF.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="qr_generator_reader codigo qr generar leer">
+            <span class="tag">Utilidad</span>
+            <h4>qr_generator_reader.py</h4>
+            <p>Genera y lee códigos QR para URLs, Wi-Fi o texto.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="unit_converter convertir unidades monedas divisas">
+            <span class="tag">Utilidad</span>
+            <h4>unit_converter.py</h4>
+            <p>Convierte unidades físicas, medidas, datos y divisas.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="image_optimizer comprimir imagenes webp png jpg">
+            <span class="tag">Imagen</span>
+            <h4>image_optimizer.py</h4>
+            <p>Comprime, redimensiona y convierte imágenes manteniendo calidad.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="rembg_background_remover quitar fondo imagen ia">
+            <span class="tag">Imagen IA</span>
+            <h4>rembg_background_remover.py</h4>
+            <p>Elimina automáticamente el fondo de cualquier fotografía o PNG.</p>
+          </div>
+          <div class="card" data-cat="dev" data-search="crypto_stock_tracker bitcoin cripto bolsa acciones">
+            <span class="tag">Finanzas</span>
+            <h4>crypto_stock_tracker.py</h4>
+            <p>Consulta precios en vivo de criptomonedas y acciones bursátiles.</p>
+          </div>
+
+          <!-- Sistema & Hardware -->
+          <div class="card" data-cat="sys" data-search="system_cleaner limpiar temporales cache basura">
+            <span class="tag">Sistema</span>
+            <h4>system_cleaner.py</h4>
+            <p>Limpia archivos temporales y caché para liberar espacio en disco.</p>
+          </div>
+          <div class="card" data-cat="sys" data-search="downloads_organizer organizar descargas carpetas">
+            <span class="tag">Archivos</span>
+            <h4>downloads_organizer.py</h4>
+            <p>Clasifica automáticamente tu carpeta Descargas por categorías.</p>
+          </div>
+          <div class="card" data-cat="sys" data-search="duplicate_file_finder duplicados hash archivos">
+            <span class="tag">Archivos</span>
+            <h4>duplicate_file_finder.py</h4>
+            <p>Encuentra archivos idénticos duplicados por hash SHA/MD5.</p>
+          </div>
+          <div class="card" data-cat="sys" data-search="hardware_temperature_alert temperatura cpu gpu alerta">
+            <span class="tag">Hardware</span>
+            <h4>hardware_temperature_alert.py</h4>
+            <p>Vigila temperaturas de CPU/GPU y emite alertas si suben demasiado.</p>
+          </div>
+          <div class="card" data-cat="sys" data-search="battery_advisor bateria energia laptop">
+            <span class="tag">Hardware</span>
+            <h4>battery_advisor.py</h4>
+            <p>Analiza estado de batería, ciclos y recomienda ajustes de ahorro.</p>
+          </div>
+          <div class="card" data-cat="sys" data-search="peripheral_battery_sentinel mouse teclado bluetooth bateria">
+            <span class="tag">Hardware</span>
+            <h4>peripheral_battery_sentinel.py</h4>
+            <p>Monitorea el nivel de batería de tus periféricos inalámbricos.</p>
+          </div>
+          <div class="card" data-cat="sys" data-search="bluetooth_auto_mesh bluetooth conectar dispositivos">
+            <span class="tag">Hardware</span>
+            <h4>bluetooth_auto_mesh.py</h4>
+            <p>Gestiona y reconecta dispositivos Bluetooth automáticamente.</p>
+          </div>
+          <div class="card" data-cat="sys" data-search="window_layout_manager ventanas organizar pantalla">
+            <span class="tag">Escritorio</span>
+            <h4>window_layout_manager.py</h4>
+            <p>Guarda y restaura disposiciones de ventanas por espacio de trabajo.</p>
+          </div>
+          <div class="card" data-cat="sys" data-search="screen_color_night_light filtro luz azul noche">
+            <span class="tag">Pantalla</span>
+            <h4>screen_color_night_light.py</h4>
+            <p>Activa y ajusta el filtro cálido de luz azul para cuidar la vista.</p>
+          </div>
+          <div class="card" data-cat="sys" data-search="shutdown_timer apagar reiniciar suspender temporizador">
+            <span class="tag">Sistema</span>
+            <h4>shutdown_timer.py</h4>
+            <p>Programa el apagado, reinicio o suspensión automática del PC.</p>
+          </div>
+
+          <!-- Bienestar, Ocio & Media -->
+          <div class="card" data-cat="life" data-search="spotify_smart_controller spotify musica playlist">
+            <span class="tag">Media</span>
+            <h4>spotify_smart_controller.py</h4>
+            <p>Control inteligente de reproducción, colas y ambiente en Spotify.</p>
+          </div>
+          <div class="card" data-cat="life" data-search="ambient_sound ruido blanco lluvia cafe concentracion">
+            <span class="tag">Bienestar</span>
+            <h4>ambient_sound.py</h4>
+            <p>Reproduce paisajes sonoros ambientales (lluvia, bosque, ruido blanco).</p>
+          </div>
+          <div class="card" data-cat="life" data-search="gaming_mode modo juego fps rendimiento">
+            <span class="tag">Gaming</span>
+            <h4>gaming_mode.py</h4>
+            <p>Prepara el PC para jugar silenciando alertas y priorizando recursos.</p>
+          </div>
+          <div class="card" data-cat="life" data-search="game_decider elegir juego aleatorio">
+            <span class="tag">Gaming</span>
+            <h4>game_decider.py</h4>
+            <p>Te ayuda a decidir qué juego iniciar de tu biblioteca.</p>
+          </div>
+          <div class="card" data-cat="life" data-search="steam_deal_hunter ofertas steam descuentos">
+            <span class="tag">Gaming</span>
+            <h4>steam_deal_hunter.py</h4>
+            <p>Busca ofertas, mínimos históricos y descuentos activos en Steam.</p>
+          </div>
+          <div class="card" data-cat="life" data-search="pomodoro_timer enfoque estudio trabajo timer">
+            <span class="tag">Productividad</span>
+            <h4>pomodoro_timer.py</h4>
+            <p>Sesiones Pomodoro con avisos de enfoque y descansos hablados.</p>
+          </div>
+          <div class="card" data-cat="life" data-search="breathing_coach respiracion relajacion estres">
+            <span class="tag">Bienestar</span>
+            <h4>breathing_coach.py</h4>
+            <p>Ejercicios guiados de respiración por voz para reducir el estrés.</p>
+          </div>
+          <div class="card" data-cat="life" data-search="wellness_reminder agua postura descanso salud">
+            <span class="tag">Bienestar</span>
+            <h4>wellness_reminder.py</h4>
+            <p>Recordatorios inteligentes para hidratarte, estirar y descansar la vista.</p>
+          </div>
+          <div class="card" data-cat="life" data-search="voice_journal diario voz notas personales">
+            <span class="tag">Personal</span>
+            <h4>voice_journal.py</h4>
+            <p>Diario personal dictado por voz con registro cronológico.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE, SECURITY & SHORTCUTS -->
+    <section id="architecture">
+      <h2 class="sec-title">Arquitectura del Sistema, Seguridad y Atajos</h2>
+      <p class="sec-sub">Cómo se organiza Viernes internamente, cómo protege tus credenciales y cómo operarlo al instante.</p>
+      <div class="grid-3">
+        <div class="card" data-search="arquitectura carpetas core actions plugins memory dashboard security">
+          <h3>Estructura Modular</h3>
+          <ul>
+            <li><code>actions/</code> — 53 módulos de acción de alto nivel</li>
+            <li><code>plugins/</code> — 41 plugins extensibles + <code>_template.py</code></li>
+            <li><code>core/</code> — 60+ motores (LLM, TTS/STT, Live2D, TV, Radio, CleanYourTV, HUD)</li>
+            <li><code>memory/</code> — Memoria a largo plazo, conocimiento de libros y config</li>
+            <li><code>dashboard/</code> &amp; <code>app/</code> — Panel web remoto y App Android</li>
+            <li><code>security/</code> — Bóveda cifrada y validación de claves</li>
+          </ul>
+        </div>
+        <div class="card" data-search="seguridad cifrado vault api keys confirmacion undo">
+          <h3>Seguridad, Cifrado y Confirmación</h3>
+          <ul>
+            <li>Cifrado local de credenciales con <code>cryptography</code> (<code>config/api_keys.json</code>)</li>
+            <li>Módulo <code>core/confirm.py</code> para confirmar acciones destructivas antes de ejecutarlas</li>
+            <li>Módulo <code>core/undo.py</code> y <code>send2trash</code> para revertir operaciones</li>
+            <li>Biometría vocal (<code>voice_security.py</code>) y limpieza de secretos para GitHub</li>
+          </ul>
+        </div>
+        <div class="card" data-search="atajos teclado shortcuts f4 microfono hud fullscreen">
+          <h3>Atajos y Modos del HUD</h3>
+          <ul>
+            <li><strong>F4:</strong> Activar / silenciar micrófono al instante</li>
+            <li><strong>Botón 🎛️ HUD Studio:</strong> Personalización total de temas, colores, fuentes y fondos</li>
+            <li><strong>Botón 🎭 Presencia:</strong> Alterna Live2D, VRM 3D, Holograma o modo compacto</li>
+            <li><strong>Botón 💛 Donar · PayPal:</strong> Acceso directo en la esquina inferior derecha del HUD</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- DONATE -->
+    <section id="donate">
+      <h2 class="sec-title">Apoya el Proyecto · Groovi Developer</h2>
+      <div class="donate-box" data-search="paypal donar groovi developer apoyo">
+        <div style="max-width:520px;">
+          <h3 style="margin-bottom:6px; color:#fff;">Viernes es 100% gratuito y Open-Source</h3>
+          <p style="font-size:13.5px; color:var(--text-med);">
+            Desarrollado por <strong>Groovi Developer</strong>. Si este proyecto te resulta útil y quieres impulsar nuevas
+            integraciones, actualizaciones y soporte continuo, puedes hacer una donación segura vía PayPal.
+          </p>
+        </div>
+        <div id="paypal-container-NE56HM9KTAQRQ" style="min-width:260px;"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="imgModal" class="modal">
+    <img id="modalImg" src="" alt="Vista previa" />
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if (window.paypal && paypal.HostedButtons) {
+      paypal.HostedButtons({
+        hostedButtonId: "NE56HM9KTAQRQ",
+      }).render("#paypal-container-NE56HM9KTAQRQ");
+    }
+  </script>
+</body>
+</html>

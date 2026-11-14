@@ -1,0 +1,4135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Edith Live2D Pro Autonomous Engine</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent !important;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
+    }
+    canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      background: transparent !important;
+    }
+    #loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #A0A0AB;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      background: transparent;
+      z-index: 100;
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 2px solid rgba(110, 106, 246, 0.22);
+      border-top-color: #6E6AF6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #debug-hud {
+      display: none;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 12px;
+      background: rgba(5, 15, 25, 0.85);
+      border: 1px solid rgba(255, 148, 194, 0.4);
+      border-radius: 4px;
+      color: #e0f0ff;
+      font-family: monospace;
+      font-size: 11px;
+      line-height: 1.4;
+      pointer-events: none;
+      z-index: 90;
+    }
+    #firefly-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+      pointer-events: none;
+      z-index: 45;
+    }
+  </style>
+
+  <script src="lib/live2dcubismcore.min.js"></script>
+  <script src="lib/pixi.min.js"></script>
+  <script src="lib/cubism4.min.js"></script>
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text">Preparando presencia…</div>
+  </div>
+
+  <div id="debug-hud"></div>
+
+  <div id="canvas-container">
+    <canvas id="canvas"></canvas>
+    <canvas id="firefly-canvas"></canvas>
+  </div>
+
+  <script>
+    // ══════════════════════════════════════════════════════════════════════════
+    // 1. SISTEMA EMOCIONAL AVANZADO (EdithEmotionEngine)
+    // ══════════════════════════════════════════════════════════════════════════
+    class EdithEmotionEngine {
+      constructor() {
+        this.currentEmotion = 'neutral';
+        this.intensity = 1.0;
+        this.duration = 0.0;
+        this.elapsed = 0.0;
+        this.autoDecay = true;
+
+        // Current blended output parameter values
+        this.current = {
+          eyeHappy: 0.0,
+          eyeAngry: 0.0,
+          eyeSmile: 0.0,
+          eyeOpenOffset: 0.0,
+          eyeSquint: 0.0,
+          eyeCircles: 0.0,
+          browY: 0.0,
+          browAngle: 0.0,
+          browForm: 0.0,
+          browAsymY: 0.0, // for confusion/curiosity
+          mouthForm: 0.25,
+          mouthOpenOffset: 0.0,
+          mouthX: 0.0,
+          cheek: 0.20,
+          cheekPuff: 0.0,
+          tongueOut: 0.0,
+          expression1: 0.0, // tears
+          expression2: 0.0, // sweat/teardrop
+          expression3: 0.0, // happy squint ^^
+          expression4: 0.0, // >< squint
+          headTiltOffset: 0.0,
+          headPitchOffset: 0.0,
+          bodyLeanOffset: 0.0
+        };
+
+        // Targets for smooth interpolation
+        this.target = Object.assign({}, this.current);
+      }
+
+      setEmotion(name, intensity = 1.0, duration = 0.0) {
+        name = String(name || 'neutral').toLowerCase().trim();
+        this.currentEmotion = name;
+        this.intensity = Math.max(0.0, Math.min(1.0, Number(intensity) || 1.0));
+        this.duration = Number(duration) || 0.0;
+        this.elapsed = 0.0;
+        this.autoDecay = (this.duration > 0.0);
+
+        this.applyEmotionTargets(name, this.intensity);
+      }
+
+      applyEmotionTargets(name, k) {
+        // Reset base targets
+        const t = {
+          eyeHappy: 0.0,
+          eyeAngry: 0.0,
+          eyeSmile: 0.0,
+          eyeOpenOffset: 0.0,
+          eyeSquint: 0.0,
+          eyeCircles: 0.0,
+          browY: 0.0,
+          browAngle: 0.0,
+          browForm: 0.0,
+          browAsymY: 0.0,
+          mouthForm: 0.20,
+          mouthOpenOffset: 0.0,
+          mouthX: 0.0,
+          cheek: 0.20,
+          cheekPuff: 0.0,
+          tongueOut: 0.0,
+          expression1: 0.0,
+          expression2: 0.0,
+          expression3: 0.0,
+          expression4: 0.0,
+          headTiltOffset: 0.0,
+          headPitchOffset: 0.0,
+          bodyLeanOffset: 0.0
+        };
+
+        switch (name) {
+          case 'happy':
+          case 'happiness':
+            t.eyeHappy = 0.85 * k;
+            t.eyeSmile = 0.70 * k;
+            t.mouthForm = 0.85 * k;
+            t.cheek = 0.35 + 0.35 * k;
+            t.browY = 0.25 * k;
+            t.headPitchOffset = 3.5 * k;
+            t.bodyLeanOffset = 0.2 * k;
+            break;
+
+          case 'sad':
+          case 'sadness':
+            t.browY = -0.55 * k;
+            t.browAngle = 0.45 * k;
+            t.mouthForm = -0.65 * k;
+            t.eyeOpenOffset = -0.30 * k;
+            t.cheek = 0.10;
+            t.headPitchOffset = -8.0 * k;
+            t.headTiltOffset = -3.0 * k;
+            t.bodyLeanOffset = -0.3 * k;
+            if (k > 0.75) t.expression1 = 0.7 * k; // subtle tears
+            break;
+
+          case 'angry':
+          case 'anger':
+            t.eyeAngry = 0.80 * k;
+            t.browY = -0.45 * k;
+            t.browAngle = -0.65 * k;
+            t.mouthForm = -0.50 * k;
+            t.cheekPuff = 0.45 * k;
+            t.headPitchOffset = -3.0 * k;
+            break;
+
+          case 'shy':
+          case 'embarrassed':
+            t.cheek = 0.75 + 0.25 * k; // intense cute blush
+            t.eyeSmile = 0.40 * k;
+            t.mouthForm = 0.35 * k;
+            t.headTiltOffset = 6.5 * k;
+            t.headPitchOffset = -5.0 * k;
+            t.eyeOpenOffset = -0.15 * k;
+            if (k > 0.65) t.expression2 = 0.8 * k; // sweat/teardrop
+            break;
+
+          case 'surprised':
+          case 'surprise':
+            t.eyeOpenOffset = 0.45 * k; // wide open eyes
+            t.browY = 0.85 * k;
+            t.mouthOpenOffset = 0.38 * k;
+            t.mouthForm = 0.10;
+            t.headPitchOffset = 4.0 * k;
+            t.bodyLeanOffset = -0.4 * k; // recoil back
+            break;
+
+          case 'curious':
+          case 'curiosity':
+            t.headTiltOffset = -11.0 * k; // curious head tilt
+            t.browAsymY = 0.45 * k;
+            t.browY = 0.20 * k;
+            t.eyeOpenOffset = 0.15 * k;
+            t.mouthForm = 0.35 * k;
+            t.bodyLeanOffset = 0.35 * k; // lean forward
+            break;
+
+          case 'bored':
+          case 'boredom':
+            t.eyeOpenOffset = -0.35 * k; // half-lidded
+            t.browY = -0.20 * k;
+            t.mouthForm = -0.25 * k;
+            t.cheekPuff = 0.35 * k;
+            t.headTiltOffset = 4.5 * k;
+            t.headPitchOffset = -4.0 * k;
+            break;
+
+          case 'confused':
+          case 'confusion':
+            t.headTiltOffset = 9.5 * k;
+            t.browAsymY = 0.70 * k; // asymmetric eyebrows
+            t.browY = 0.10;
+            t.mouthX = 0.30 * k;
+            t.mouthForm = -0.15 * k;
+            if (k > 0.8) t.eyeCircles = 0.65 * k;
+            break;
+
+          case 'proud':
+          case 'satisfied':
+            t.headPitchOffset = 5.5 * k; // chin up
+            t.bodyLeanOffset = 0.3 * k;
+            t.eyeHappy = 0.90 * k;
+            t.mouthForm = 0.80 * k;
+            t.cheek = 0.35 * k;
+            t.expression3 = 0.5 * k;
+            break;
+
+          case 'enthusiastic':
+          case 'excited':
+            t.eyeOpenOffset = 0.25 * k;
+            t.eyeHappy = 0.70 * k;
+            t.mouthForm = 0.90 * k;
+            t.browY = 0.50 * k;
+            t.cheek = 0.45 * k;
+            t.bodyLeanOffset = 0.4 * k;
+            break;
+
+          case 'relieved':
+          case 'relief':
+            t.mouthForm = 0.45 * k;
+            t.eyeSmile = 0.50 * k;
+            t.browY = 0.10;
+            t.cheek = 0.25 * k;
+            t.headPitchOffset = -2.0 * k;
+            t.expression3 = 0.35 * k;
+            break;
+
+          case 'sleepy':
+          case 'tired':
+            t.eyeOpenOffset = -0.65 * k;
+            t.browY = -0.20 * k;
+            t.mouthForm = 0.10;
+            t.headPitchOffset = -9.0 * k;
+            t.headTiltOffset = -4.5 * k;
+            t.cheek = 0.18;
+            break;
+
+          case 'neutral':
+          default:
+            // Standard pleasant baseline
+            t.mouthForm = 0.25;
+            t.cheek = 0.20;
+            break;
+        }
+
+        this.target = t;
+      }
+
+      update(dt) {
+        // Handle timed decay
+        if (this.autoDecay && this.duration > 0.0) {
+          this.elapsed += dt;
+          if (this.elapsed >= this.duration) {
+            this.setEmotion('neutral', 1.0, 0.0);
+          }
+        }
+
+        // Smooth continuous interpolation (critically damped lerp)
+        const speed = 7.0;
+        const factor = Math.min(1.0, dt * speed);
+        for (const k in this.target) {
+          this.current[k] += (this.target[k] - this.current[k]) * factor;
+        }
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 2. SISTEMA DE LUCIÉRNAGA MÁGICA Y FÍSICA FLOTANTE (EdithFireflySystem)
+    // ══════════════════════════════════════════════════════════════════════════
+    class EdithFireflySystem {
+      constructor(canvasId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
+        this.active = true;
+        this.visible = true;
+
+        // Normalized coordinates: [-1.0, 1.0] relative to avatar viewport
+        this.nx = 0.38;
+        this.ny = 0.22;
+        this.targetNx = 0.38;
+        this.targetNy = 0.22;
+
+        this.x = 0;
+        this.y = 0;
+        this.flightTimer = 0.0;
+        this.flightDuration = 3.2;
+        this.t = Math.random() * 100.0;
+
+        this.pulse = 0.0;
+        this.wingsAngle = 0.0;
+        this.trail = [];
+        this.ripples = [];
+        this.mousePos = { x: -9999, y: -9999 };
+        this.frightTimer = 0.0;
+
+        // Jibril-style Rotating Anime Light Halo state (Prop: Halo de Luz) - ELIMINADO
+        this.halo = {
+          alpha: 0.0,
+          rot: 0.0,
+          x: 350,
+          y: 95,
+          radius: 0,
+          headX: 0.0,
+          headY: 0.0,
+          headZ: 0.0
+        };
+        this.haloMotes = [];
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+      }
+
+      setHaloState(st) {
+        if (!st) return;
+        this.halo.alpha = st.alpha !== undefined ? st.alpha : this.halo.alpha;
+        this.halo.rot = st.rot !== undefined ? st.rot : this.halo.rot;
+        this.halo.x = st.x !== undefined ? st.x : this.halo.x;
+        this.halo.y = st.y !== undefined ? st.y : this.halo.y;
+        this.halo.radius = st.radius !== undefined ? st.radius : this.halo.radius;
+        this.halo.headX = st.headX !== undefined ? st.headX : 0.0;
+        this.halo.headY = st.headY !== undefined ? st.headY : 0.0;
+        this.halo.headZ = st.headZ !== undefined ? st.headZ : 0.0;
+      }
+
+      resize() {
+        if (!this.canvas) return;
+        this.width = window.innerWidth || 700;
+        this.height = window.innerHeight || 800;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.updatePixelCoords();
+      }
+
+      updatePixelCoords() {
+        this.x = (this.nx + 1.0) * 0.5 * (this.width || 700);
+        this.y = (-this.ny + 1.0) * 0.5 * (this.height || 800);
+      }
+
+      onMouseMove(nx, ny) {
+        this.mousePos.x = (nx + 1.0) * 0.5 * (this.width || 700);
+        this.mousePos.y = (-ny + 1.0) * 0.5 * (this.height || 800);
+      }
+
+      pickNewTarget(state) {
+        if (state === 'SLEEPING') {
+          // Hover near shoulder as a peaceful sleeping nightlight
+          this.targetNx = 0.40 + (Math.random() - 0.5) * 0.08;
+          this.targetNy = -0.12 + (Math.random() - 0.5) * 0.06;
+          this.flightDuration = 4.8 + Math.random() * 2.0;
+          return;
+        }
+
+        const waypoints = [
+          { nx: 0.46, ny: 0.32, dur: 3.4 },  // upper right
+          { nx: -0.44, ny: 0.28, dur: 3.5 }, // upper left
+          { nx: 0.18, ny: 0.52, dur: 3.0 },  // overhead flutter
+          { nx: -0.15, ny: 0.46, dur: 3.0 }, // overhead left
+          { nx: 0.34, ny: 0.06, dur: 3.6 },  // right shoulder hover
+          { nx: -0.32, ny: -0.04, dur: 3.6 }, // left shoulder hover
+          { nx: 0.02, ny: 0.20, dur: 2.8 },  // directly before her face
+          { nx: 0.52, ny: -0.12, dur: 3.2 }, // near right hand
+          { nx: -0.46, ny: -0.15, dur: 3.2 } // near left hand
+        ];
+
+        const next = waypoints[Math.floor(Math.random() * waypoints.length)];
+        this.targetNx = next.nx + (Math.random() - 0.5) * 0.12;
+        this.targetNy = next.ny + (Math.random() - 0.5) * 0.10;
+        this.flightDuration = next.dur + (Math.random() - 0.5) * 1.0;
+      }
+
+      update(dt, state) {
+        if (!this.active) return;
+        this.t += dt;
+
+        this.flightTimer += dt;
+        if (this.flightTimer >= this.flightDuration) {
+          this.flightTimer = 0.0;
+          this.pickNewTarget(state);
+        }
+
+        // Fright escape if cursor approaches
+        if (this.frightTimer > 0) {
+          this.frightTimer -= dt;
+        } else if (state !== 'SLEEPING') {
+          const dx = this.x - this.mousePos.x;
+          const dy = this.y - this.mousePos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 95 && dist > 1) {
+            this.frightTimer = 1.3;
+            const pushX = (dx / dist) * 0.55;
+            const pushY = -(dy / dist) * 0.45;
+            this.targetNx = Math.max(-0.75, Math.min(0.75, this.nx + pushX));
+            this.targetNy = Math.max(-0.40, Math.min(0.70, this.ny + pushY));
+            this.flightTimer = 0.0;
+            this.flightDuration = 1.6;
+          }
+        }
+
+        const steerSpeed = (this.frightTimer > 0) ? 4.5 : (state === 'SLEEPING' ? 0.9 : 2.2);
+        this.nx += (this.targetNx - this.nx) * Math.min(1.0, dt * steerSpeed);
+        this.ny += (this.targetNy - this.ny) * Math.min(1.0, dt * steerSpeed);
+
+        const hoverAmp = (state === 'SLEEPING') ? 0.015 : 0.038;
+        const driftX = Math.sin(this.t * 2.8) * hoverAmp + Math.cos(this.t * 5.5) * (hoverAmp * 0.35);
+        const driftY = Math.cos(this.t * 2.2) * hoverAmp + Math.sin(this.t * 4.8) * (hoverAmp * 0.35);
+
+        const renderNx = this.nx + driftX;
+        const renderNy = this.ny + driftY;
+
+        this.x = (renderNx + 1.0) * 0.5 * (this.width || 700);
+        this.y = (-renderNy + 1.0) * 0.5 * (this.height || 800);
+
+        const pulseRate = (state === 'SLEEPING') ? 1.4 : 3.4;
+        this.pulse = 0.5 + 0.5 * Math.sin(this.t * pulseRate);
+        this.wingsAngle = Math.sin(this.t * 38.0) * 0.45;
+
+        // Emit sparkling stardust trail
+        if (state !== 'SLEEPING' && Math.random() < 0.48) {
+          this.trail.push({
+            x: this.x + (Math.random() - 0.5) * 6,
+            y: this.y + (Math.random() - 0.5) * 6,
+            radius: 1.5 + Math.random() * 2.2,
+            alpha: 0.95,
+            life: 0.0,
+            maxLife: 0.65 + Math.random() * 0.4,
+            vx: (Math.random() - 0.5) * 14,
+            vy: 9 + Math.random() * 16
+          });
+        }
+
+        for (let i = this.trail.length - 1; i >= 0; i--) {
+          const p = this.trail[i];
+          p.life += dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.alpha = Math.max(0, 1.0 - (p.life / p.maxLife));
+          if (p.life >= p.maxLife) {
+            this.trail.splice(i, 1);
+          }
+        }
+
+        // Update interactive tactile ripples
+        for (let i = this.ripples.length - 1; i >= 0; i--) {
+          const r = this.ripples[i];
+          r.radius += r.speed * dt;
+          r.alpha = Math.max(0, 1.0 - (r.radius / r.maxRadius));
+          if (r.radius >= r.maxRadius) {
+            this.ripples.splice(i, 1);
+          }
+        }
+      }
+
+      spawnRipple(x, y, color = 'rgba(80, 220, 255, ALPHA)', maxRadius = 55, speed = 90) {
+        this.ripples.push({
+          x: x,
+          y: y,
+          radius: 4,
+          maxRadius: maxRadius,
+          speed: speed,
+          alpha: 1.0,
+          color: color,
+          lineWidth: 2.5,
+          shadowColor: 'rgba(0, 220, 255, 0.95)'
+        });
+        // Stardust burst at tactile point
+        for (let i = 0; i < 7; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const spd = 20 + Math.random() * 45;
+          this.trail.push({
+            x: x,
+            y: y,
+            radius: 1.6 + Math.random() * 2.0,
+            alpha: 1.0,
+            life: 0.0,
+            maxLife: 0.45 + Math.random() * 0.35,
+            vx: Math.cos(angle) * spd,
+            vy: Math.sin(angle) * spd
+          });
+        }
+      }
+
+      renderJibrilHalo(ctx) {
+        const h = this.halo;
+        if (!h || h.alpha <= 0.005) return;
+
+        const alpha = Math.max(0.0, Math.min(1.0, h.alpha));
+        // Smooth ease-out scale on toggle
+        const scaleAnim = 0.80 + 0.20 * Math.sin(alpha * Math.PI * 0.5);
+        const R = h.radius * scaleAnim;
+        const hx = h.x;
+        const hy = h.y;
+
+        // Perspectiva 3D de plano elíptico según cabeceo e inclinación de cabeza (centrado y horizontal por defecto)
+        const tiltAngle = (h.headZ || 0.0) * 0.022;
+        const perspY = Math.max(0.20, Math.min(0.36, 0.26 - (h.headY || 0.0) * 0.003));
+        const spin = h.rot || 0.0;
+
+        ctx.save();
+        ctx.translate(hx, hy);
+        ctx.rotate(tiltAngle);
+
+        // MODO ADITIVO CELANDINO (Screen / Lighter) para resplandor anime cinematográfico
+        ctx.globalCompositeOperation = 'lighter';
+
+        // 1. Resplandor volumétrico etéreo (Soft Bloom Halo)
+        ctx.save();
+        ctx.scale(1.0, perspY);
+        const bloomGrad = ctx.createRadialGradient(0, 0, R * 0.2, 0, 0, R * 1.55);
+        bloomGrad.addColorStop(0.0, `rgba(255, 255, 255, ${0.45 * alpha})`);
+        bloomGrad.addColorStop(0.35, `rgba(94, 234, 212, ${0.30 * alpha})`);
+        bloomGrad.addColorStop(0.70, `rgba(192, 132, 252, ${0.22 * alpha})`);
+        bloomGrad.addColorStop(1.0, `rgba(94, 234, 212, 0.0)`);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, R * 1.55, 0, Math.PI * 2);
+        ctx.fillStyle = bloomGrad;
+        ctx.fill();
+        ctx.restore();
+
+        // 2. Destello anamórfico horizontal fino (Cinematic Anamorphic Light Streak)
+        ctx.save();
+        const streakW = R * 2.3;
+        const streakH = Math.max(2.5, R * 0.045);
+        const streakGrad = ctx.createLinearGradient(-streakW, 0, streakW, 0);
+        streakGrad.addColorStop(0.0, 'rgba(168, 85, 247, 0.0)');
+        streakGrad.addColorStop(0.3, `rgba(94, 234, 212, ${0.40 * alpha})`);
+        streakGrad.addColorStop(0.5, `rgba(255, 255, 255, ${0.85 * alpha})`);
+        streakGrad.addColorStop(0.7, `rgba(94, 234, 212, ${0.40 * alpha})`);
+        streakGrad.addColorStop(1.0, 'rgba(168, 85, 247, 0.0)');
+
+        ctx.beginPath();
+        ctx.ellipse(0, 0, streakW, streakH, 0, 0, Math.PI * 2);
+        ctx.fillStyle = streakGrad;
+        ctx.fill();
+        ctx.restore();
+
+        // 3. Gradientes cromáticos iridiscentes de alta fidelidad
+        const strokeGrad = ctx.createLinearGradient(-R * 1.2, -R * 0.3, R * 1.2, R * 0.3);
+        strokeGrad.addColorStop(0.0, `rgba(216, 180, 254, ${0.95 * alpha})`);
+        strokeGrad.addColorStop(0.35, `rgba(125, 211, 252, ${0.95 * alpha})`);
+        strokeGrad.addColorStop(0.68, `rgba(94, 234, 212, ${0.98 * alpha})`);
+        strokeGrad.addColorStop(1.0, `rgba(254, 240, 138, ${0.90 * alpha})`);
+
+        // Dibujo de Geometría Celestial Pro
+        const drawCelestialRings = (extraW, strokeStyle, shadowCol, shadowBlurVal) => {
+          ctx.save();
+          ctx.scale(1.0, perspY);
+          ctx.rotate(spin);
+
+          ctx.strokeStyle = strokeStyle;
+          ctx.fillStyle = strokeStyle;
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.shadowColor = shadowCol;
+          ctx.shadowBlur = shadowBlurVal;
+
+          // A. Anillo exterior primario (Radiant Outer Crown)
+          ctx.beginPath();
+          ctx.arc(0, 0, R, 0, Math.PI * 2);
+          ctx.lineWidth = 1.6 + extraW;
+          ctx.stroke();
+
+          // B. Anillo concéntrico rúnico segmentado (r = 0.78 * R) con aberturas místicas
+          const rInner = R * 0.78;
+          for (let s = 0; s < 6; s++) {
+            const startA = s * (Math.PI / 3) + 0.10;
+            const endA = (s + 1) * (Math.PI / 3) - 0.10;
+            ctx.beginPath();
+            ctx.arc(0, 0, rInner, startA, endA);
+            ctx.lineWidth = 1.1 + extraW * 0.6;
+            ctx.stroke();
+
+            // Runic tick marks connecting inner and outer ring
+            const midA = s * (Math.PI / 3) + (Math.PI / 6);
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(midA) * rInner, Math.sin(midA) * rInner);
+            ctx.lineTo(Math.cos(midA) * (R * 0.94), Math.sin(midA) * (R * 0.94));
+            ctx.lineWidth = 1.0 + extraW * 0.5;
+            ctx.stroke();
+          }
+
+          // C. Cuatro Rayos Cardinales Esbeltos (Tapered Celestial Needles)
+          const primaryRays = [0, Math.PI * 0.5, Math.PI, Math.PI * 1.5];
+          for (let i = 0; i < primaryRays.length; i++) {
+            const a = primaryRays[i];
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+            const perpCos = -sin;
+            const perpSin = cos;
+
+            const rBase = R * 0.92;
+            const rTip = R * 1.30 + extraW * 0.6;
+            const halfW = 2.0 + extraW * 0.3;
+
+            ctx.beginPath();
+            ctx.moveTo(cos * rBase, sin * rBase);
+            ctx.lineTo(cos * (rBase + (rTip - rBase) * 0.30) + perpCos * halfW, sin * (rBase + (rTip - rBase) * 0.30) + perpSin * halfW);
+            ctx.lineTo(cos * rTip, sin * rTip);
+            ctx.lineTo(cos * (rBase + (rTip - rBase) * 0.30) - perpCos * halfW, sin * (rBase + (rTip - rBase) * 0.30) - perpSin * halfW);
+            ctx.closePath();
+            ctx.fill();
+            if (extraW > 0) ctx.stroke();
+          }
+
+          // D. Micro Cristales a 45 grados (Secondary Diamond Flares)
+          const secondaryRays = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
+          for (let i = 0; i < secondaryRays.length; i++) {
+            const a = secondaryRays[i];
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+            const rTip = R * 1.14 + extraW * 0.4;
+            const rBase = R * 0.96;
+
+            ctx.beginPath();
+            ctx.moveTo(cos * rBase, sin * rBase);
+            ctx.lineTo(cos * rTip, sin * rTip);
+            ctx.lineWidth = 1.1 + extraW * 0.5;
+            ctx.stroke();
+
+            // Pips de luz estelar
+            ctx.beginPath();
+            ctx.arc(cos * (rTip + 2.0), sin * (rTip + 2.0), 1.2 + extraW * 0.25, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // E. Astrolabio Central en Contrarrotación (r = 0.45 * R)
+          ctx.save();
+          ctx.rotate(-spin * 2.2);
+          const rCore = R * 0.45;
+          ctx.beginPath();
+          ctx.arc(0, 0, rCore, 0, Math.PI * 2);
+          ctx.lineWidth = 1.0 + extraW * 0.4;
+          ctx.stroke();
+
+          // Estrella polar central de 8 puntas
+          const starR = R * 0.20 + extraW * 0.3;
+          const starInner = starR * 0.32;
+          ctx.beginPath();
+          for (let pt = 0; pt < 8; pt++) {
+            const starAngle = pt * (Math.PI * 0.25);
+            const curRad = (pt % 2 === 0) ? starR : starInner;
+            const px = Math.cos(starAngle) * curRad;
+            const py = Math.sin(starAngle) * curRad;
+            if (pt === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+
+          // F. Blasón Winged Flügel / Corona Celestial Superior
+          const crestAngle = -Math.PI * 0.5;
+          const crestX = Math.cos(crestAngle) * R;
+          const crestY = Math.sin(crestAngle) * R;
+          ctx.save();
+          ctx.translate(crestX, crestY);
+          ctx.rotate(crestAngle + Math.PI * 0.5);
+
+          const cw = 12 + extraW * 1.2;
+          const ch = 8 + extraW * 0.8;
+          ctx.beginPath();
+          ctx.moveTo(-cw, -ch * 0.4);
+          ctx.quadraticCurveTo(-cw * 0.5, -ch * 1.1, 0, -ch * 0.2);
+          ctx.quadraticCurveTo(cw * 0.5, -ch * 1.1, cw, -ch * 0.4);
+          ctx.quadraticCurveTo(0, ch * 0.8, -cw, -ch * 0.4);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(0, -ch * 0.65, 2.2 + extraW * 0.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          ctx.restore();
+        };
+
+        // Renderizado multicapa con resplandor aditivo:
+        // Capa 1: Aura etérea de difusión lavanda/menta
+        drawCelestialRings(2.2, strokeGrad, `rgba(168, 85, 247, ${0.80 * alpha})`, 16 * alpha);
+        // Capa 2: Núcleo esmeralda/turquesa vívido
+        drawCelestialRings(0.8, `rgba(94, 234, 212, ${0.95 * alpha})`, `rgba(94, 234, 212, ${0.90 * alpha})`, 8 * alpha);
+        // Capa 3: Rayo de luz blanca pura central (#FFFFFF)
+        drawCelestialRings(0.0, `rgba(255, 255, 255, ${0.98 * alpha})`, `rgba(255, 255, 255, ${0.95 * alpha})`, 4 * alpha);
+
+        // 4. Motas de Polvo Estelar Ascendentes (Orbital Stardust Motes)
+        for (let i = 0; i < this.haloMotes.length; i++) {
+          const m = this.haloMotes[i];
+          const curA = m.angle + spin * 0.85;
+          const wave = Math.sin(this.t * m.speed * 2.2 + m.phase);
+          const mx = Math.cos(curA) * R * m.dist;
+          const my = Math.sin(curA) * R * m.dist * perspY - (wave + 1.0) * 8.0;
+          const mAlpha = alpha * (0.45 + 0.55 * (0.5 + 0.5 * wave));
+          const isLeft = mx < 0;
+          const moteColor = isLeft
+            ? `rgba(216, 180, 254, ${mAlpha.toFixed(3)})`
+            : `rgba(94, 234, 212, ${mAlpha.toFixed(3)})`;
+
+          ctx.beginPath();
+          ctx.arc(mx, my, (m.size || 1.6) * scaleAnim, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = moteColor;
+          ctx.shadowBlur = 8 * alpha;
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+
+      render(state) {
+        if (!this.ctx || !this.active) return;
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, this.width, this.height);
+
+        // Jibril-style Rotating Anime Light Halo (Prop: Halo de Luz) - Desactivado
+        if (false && this.halo && this.halo.alpha > 0.005) {
+          this.renderJibrilHalo(ctx);
+        }
+
+        if (!this.visible) return;
+
+        // Tactile interactive ripples
+        for (let i = 0; i < this.ripples.length; i++) {
+          const r = this.ripples[i];
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = r.color.replace('ALPHA', String(r.alpha.toFixed(3)));
+          ctx.lineWidth = r.lineWidth * (1 - (r.radius / r.maxRadius) * 0.5);
+          ctx.shadowColor = r.shadowColor || 'rgba(0, 240, 255, 0.9)';
+          ctx.shadowBlur = 10 * r.alpha;
+          ctx.stroke();
+
+          if (r.radius > 8) {
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, r.radius * 0.58, 0, Math.PI * 2);
+            ctx.strokeStyle = r.color.replace('ALPHA', String((r.alpha * 0.55).toFixed(3)));
+            ctx.lineWidth = 1.4;
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // Stardust particle trail
+        for (let i = 0; i < this.trail.length; i++) {
+          const p = this.trail[i];
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 235, 140, ${p.alpha * 0.8})`;
+          ctx.shadowColor = 'rgba(255, 215, 0, 0.85)';
+          ctx.shadowBlur = 6;
+          ctx.fill();
+        }
+
+        const isSleep = (state === 'SLEEPING');
+        const glowMult = isSleep ? 0.45 : (0.75 + this.pulse * 0.35);
+
+        // Bioluminescent warm aura
+        const outerRadius = (isSleep ? 16 : 30) * glowMult;
+        const grad = ctx.createRadialGradient(this.x, this.y, 1, this.x, this.y, outerRadius);
+        grad.addColorStop(0.0, `rgba(255, 255, 230, ${0.98 * glowMult})`);
+        grad.addColorStop(0.25, `rgba(255, 220, 90, ${0.72 * glowMult})`);
+        grad.addColorStop(0.60, `rgba(120, 240, 200, ${0.32 * glowMult})`);
+        grad.addColorStop(1.0, 'rgba(60, 200, 180, 0.0)');
+
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, outerRadius, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.shadowColor = 'rgba(255, 230, 120, 0.95)';
+        ctx.shadowBlur = 20 * glowMult;
+        ctx.fill();
+
+        // Fluttering gossamer wings
+        if (!isSleep) {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.shadowBlur = 0;
+
+          // Left Wing
+          ctx.save();
+          ctx.rotate(-0.35 + this.wingsAngle);
+          ctx.beginPath();
+          ctx.ellipse(-4, -6, 2.5, 6.5, -0.4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(240, 255, 250, 0.70)';
+          ctx.fill();
+          ctx.restore();
+
+          // Right Wing
+          ctx.save();
+          ctx.rotate(0.35 - this.wingsAngle);
+          ctx.beginPath();
+          ctx.ellipse(4, -6, 2.5, 6.5, 0.4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(240, 255, 250, 0.70)';
+          ctx.fill();
+          ctx.restore();
+
+          ctx.restore();
+        }
+
+        // Luminous Core
+        const coreRadius = isSleep ? 2.5 : (3.6 + this.pulse * 1.3);
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, coreRadius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffeaa7';
+        ctx.shadowBlur = 12;
+        ctx.fill();
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 2.5 SISTEMA DE MIRADA Y AUTONOMÍA OCULAR (EdithGazeController)
+    // ══════════════════════════════════════════════════════════════════════════
+    class EdithGazeController {
+      constructor() {
+        // Gaze mode: 'USER', 'FIREFLY', 'ENVIRONMENT', 'DISTRACTED', 'DOWN', 'CURSOR'
+        this.mode = 'USER';
+        this.modeTimer = 0.0;
+        this.modeDuration = 4.0;
+        this.firefly = null;
+
+        // Coordinates
+        this.targetGaze = { x: 0.0, y: 0.0 };
+        this.currentGaze = { x: 0.0, y: 0.0 };
+        this.headTarget = { x: 0.0, y: 0.0, z: 0.0 };
+        this.headCurrent = { x: 0.0, y: 0.0, z: 0.0 };
+
+        // Mouse tracking & interest management
+        this.mousePos = { x: 0.0, y: 0.0 };
+        this.lastMousePos = { x: 0.0, y: 0.0 };
+        this.hasMouse = false;
+        this.mouseSpeed = 0.0;
+        this.cursorCooldown = 0.0;
+        this.cursorCuriositySpan = 0.0;
+
+        // Micro-saccades (biological ocular trembling & scanning)
+        this.saccadeTimer = 0.0;
+        this.saccadeNext = 1.2;
+        this.saccadeOffset = { x: 0.0, y: 0.0 };
+
+        // Global curiosity / autonomy level
+        this.autonomyEnabled = true;
+        this.spontaneityLevel = 1.0;
+      }
+
+      onMouseMove(nx, ny) {
+        this.hasMouse = true;
+        const dx = nx - this.lastMousePos.x;
+        const dy = ny - this.lastMousePos.y;
+        this.mouseSpeed = Math.sqrt(dx * dx + dy * dy);
+        this.lastMousePos.x = nx;
+        this.lastMousePos.y = ny;
+        this.mousePos.x = nx;
+        this.mousePos.y = ny;
+
+        if (this.firefly) {
+          this.firefly.onMouseMove(nx, ny);
+        }
+
+        // Contextual curiosity evaluation:
+        if (this.autonomyEnabled && this.cursorCooldown <= 0.0 && this.mouseSpeed > 0.025) {
+          const chance = 0.50 * this.spontaneityLevel;
+          if (Math.random() < chance && this.mode !== 'CURSOR') {
+            this.mode = 'CURSOR';
+            this.modeTimer = 0.0;
+            this.modeDuration = 1.8 + Math.random() * 1.6;
+          }
+        }
+      }
+
+      onMouseLeave() {
+        this.hasMouse = false;
+      }
+
+      glance(dx, dy, hold = 1.5) {
+        this.mode = 'DIRECTED';
+        this.targetGaze.x = Math.max(-1.0, Math.min(1.0, dx));
+        this.targetGaze.y = Math.max(-1.0, Math.min(1.0, dy));
+        this.modeTimer = 0.0;
+        this.modeDuration = Math.max(0.8, hold);
+      }
+
+      update(dt, state, isSleep) {
+        if (isSleep) {
+          this.currentGaze.x += (0.0 - this.currentGaze.x) * Math.min(1.0, dt * 2.0);
+          this.currentGaze.y += (-0.4 - this.currentGaze.y) * Math.min(1.0, dt * 2.0);
+          return;
+        }
+
+        if (this.cursorCooldown > 0.0) {
+          this.cursorCooldown -= dt;
+        }
+
+        // Biological Micro-Saccades
+        this.saccadeTimer += dt;
+        if (this.saccadeTimer >= this.saccadeNext) {
+          this.saccadeTimer = 0.0;
+          this.saccadeNext = 0.8 + Math.random() * 1.6;
+          this.saccadeOffset.x = (Math.random() - 0.5) * 0.09;
+          this.saccadeOffset.y = (Math.random() - 0.5) * 0.06;
+        }
+
+        // State Machine for Autonomous Gaze
+        this.modeTimer += dt;
+        if (this.modeTimer >= this.modeDuration) {
+          this.modeTimer = 0.0;
+          this.selectNextGazeMode(state);
+        }
+
+        // Calculate Target Gaze according to active mode
+        let gx = 0.0;
+        let gy = 0.0;
+
+        switch (this.mode) {
+          case 'FIREFLY':
+            if (this.firefly && this.firefly.active) {
+              gx = Math.max(-1.0, Math.min(1.0, this.firefly.nx * 1.15));
+              gy = Math.max(-1.0, Math.min(1.0, this.firefly.ny * 1.05));
+            } else {
+              gx = this.targetGaze.x;
+              gy = this.targetGaze.y;
+            }
+            break;
+
+          case 'CURSOR':
+            gx = this.mousePos.x * 0.88;
+            gy = this.mousePos.y * 0.78;
+            break;
+
+          case 'USER':
+            // Direct eye contact with subtle ambient drift
+            gx = (Math.random() - 0.5) * 0.08;
+            gy = (Math.random() - 0.5) * 0.06;
+            break;
+
+          case 'ENVIRONMENT':
+            gx = this.targetGaze.x;
+            gy = this.targetGaze.y;
+            break;
+
+          case 'DISTRACTED':
+            gx = this.targetGaze.x;
+            gy = this.targetGaze.y;
+            break;
+
+          case 'DOWN':
+            gx = (Math.random() - 0.5) * 0.15;
+            gy = -0.55;
+            break;
+
+          case 'DIRECTED':
+          default:
+            gx = this.targetGaze.x;
+            gy = this.targetGaze.y;
+            break;
+        }
+
+        // Add micro-saccades
+        gx += this.saccadeOffset.x;
+        gy += this.saccadeOffset.y;
+
+        // Smooth eye follow with natural speed (faster for firefly / cursor tracking)
+        const eyeSpeed = (this.mode === 'CURSOR') ? 10.0 : (this.mode === 'FIREFLY' ? 8.5 : 5.5);
+        this.currentGaze.x += (gx - this.currentGaze.x) * Math.min(1.0, dt * eyeSpeed);
+        this.currentGaze.y += (gy - this.currentGaze.y) * Math.min(1.0, dt * eyeSpeed);
+
+        // Head target follows eye target with biomechanical realism
+        let htx = this.currentGaze.x * 24.0;
+        let hty = this.currentGaze.y * 17.0;
+        let htz = this.currentGaze.x * -7.5;
+
+        if (state === 'LISTENING') {
+          // Attentive forward tilt
+          hty += 2.0;
+          htz += 4.5;
+        } else if (state === 'THINKING') {
+          // Pensive upward & lateral tilt
+          hty += 6.5;
+          htz -= 8.0;
+        }
+
+        const headSpeed = (this.mode === 'FIREFLY') ? 5.8 : 4.8;
+        this.headCurrent.x += (htx - this.headCurrent.x) * Math.min(1.0, dt * headSpeed);
+        this.headCurrent.y += (hty - this.headCurrent.y) * Math.min(1.0, dt * headSpeed);
+        this.headCurrent.z += (htz - this.headCurrent.z) * Math.min(1.0, dt * headSpeed);
+      }
+
+      selectNextGazeMode(state) {
+        if (!this.autonomyEnabled) {
+          this.mode = 'USER';
+          this.modeDuration = 5.0;
+          return;
+        }
+
+        if (this.mode === 'CURSOR') {
+          this.cursorCooldown = 4.5 + Math.random() * 5.0;
+        }
+
+        if (state === 'LISTENING') {
+          // Highly focused on the user with rare glances to firefly/environment
+          const roll = Math.random();
+          if (roll < 0.75) {
+            this.mode = 'USER';
+            this.modeDuration = 3.5 + Math.random() * 2.5;
+          } else if (this.firefly && roll < 0.90) {
+            this.mode = 'FIREFLY';
+            this.modeDuration = 1.6 + Math.random() * 1.2;
+          } else {
+            this.mode = 'ENVIRONMENT';
+            this.targetGaze.x = (Math.random() - 0.5) * 0.4;
+            this.targetGaze.y = (Math.random() - 0.5) * 0.25;
+            this.modeDuration = 1.4 + Math.random() * 1.2;
+          }
+        } else if (state === 'SPEAKING') {
+          // Engaging with user, occasional glance aside while phrasing
+          const roll = Math.random();
+          if (roll < 0.65) {
+            this.mode = 'USER';
+            this.modeDuration = 2.8 + Math.random() * 2.2;
+          } else if (this.firefly && roll < 0.85) {
+            this.mode = 'FIREFLY';
+            this.modeDuration = 1.5 + Math.random() * 1.5;
+          } else {
+            this.mode = 'DISTRACTED';
+            this.targetGaze.x = (Math.random() > 0.5 ? 0.45 : -0.45) + (Math.random() - 0.5) * 0.2;
+            this.targetGaze.y = (Math.random() - 0.5) * 0.3;
+            this.modeDuration = 1.2 + Math.random() * 1.5;
+          }
+        } else {
+          // IDLE: full autonomy with active Firefly fascination!
+          const roll = Math.random();
+          if (this.firefly && this.firefly.active && roll < 0.60) {
+            this.mode = 'FIREFLY';
+            this.modeDuration = 3.8 + Math.random() * 4.6;
+          } else if (roll < 0.82) {
+            this.mode = 'USER';
+            this.modeDuration = 2.8 + Math.random() * 3.2;
+          } else if (roll < 0.94) {
+            this.mode = 'ENVIRONMENT';
+            const angles = [
+              { x: -0.65, y: 0.30 },
+              { x: 0.60, y: 0.25 },
+              { x: -0.50, y: -0.30 },
+              { x: 0.55, y: -0.25 },
+              { x: 0.0, y: 0.45 }
+            ];
+            const pick = angles[Math.floor(Math.random() * angles.length)];
+            this.targetGaze.x = pick.x;
+            this.targetGaze.y = pick.y;
+            this.modeDuration = 2.2 + Math.random() * 3.0;
+          } else {
+            this.mode = 'DISTRACTED';
+            this.targetGaze.x = (Math.random() > 0.5 ? 0.70 : -0.70);
+            this.targetGaze.y = -0.15 + (Math.random() - 0.5) * 0.3;
+            this.modeDuration = 2.5 + Math.random() * 3.2;
+          }
+        }
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 3. MOTOR DE ACCIONES ESPONTÁNEAS (EdithSpontaneousEngine)
+    // ══════════════════════════════════════════════════════════════════════════
+    class EdithSpontaneousEngine {
+      constructor(app) {
+        this.app = app;
+        this.autonomyEnabled = true;
+        this.spontaneityLevel = 1.0;
+        this.mood = 'cheerful'; // 'cheerful', 'calm', 'playful', 'thoughtful', 'tired'
+
+        // Idle time counter & scheduling
+        this.idleTime = 0.0;
+        this.timeSinceLastAction = 0.0;
+        this.nextActionDelay = 12.0;
+
+        // Active Action State
+        this.activeAction = null;
+        this.actionElapsed = 0.0;
+        this.actionDuration = 0.0;
+        this.actionBlendIn = 0.4;
+        this.actionBlendOut = 0.5;
+
+        // Anti-repetition buffer
+        this.actionHistory = [];
+
+        // Procedural animation outputs
+        this.offsets = {
+          angleX: 0.0,
+          angleY: 0.0,
+          angleZ: 0.0,
+          bodyX: 0.0,
+          bodyY: 0.0,
+          bodyZ: 0.0,
+          posZ: 0.0,
+          posX: 0.0,
+          posY: 0.0,
+          shoulderL: 0.0,
+          shoulderR: 0.0,
+          armL: 0.0,
+          armR: 0.0,
+          armBL: 0.0,
+          armBR: 0.0,
+          sleeveL: 0.0,
+          sleeveR: 0.0,
+          sleeveLL: 0.0,
+          sleeveLR: 0.0,
+          chestZ: 0.0,
+          hipZ: 0.0,
+          breathBonus: 0.0,
+          mouthOpenBonus: 0.0,
+          mouthFormBonus: 0.0,
+          cheekBonus: 0.0,
+          cheekPuffBonus: 0.0,
+          tongueBonus: 0.0,
+          eyeSmileBonus: 0.0,
+          eyeOpenBonus: 0.0,
+          exp3Bonus: 0.0
+        };
+      }
+
+      resetOffsets() {
+        for (const k in this.offsets) {
+          this.offsets[k] = 0.0;
+        }
+      }
+
+      triggerAction(name, force = true) {
+        name = String(name || '').toUpperCase().trim();
+
+        // Redirigir animaciones GESTURE_* al sistema de gestos del avatar
+        if (name.startsWith('GESTURE_')) {
+          const gestureKey = name.slice(8); // quitar prefijo GESTURE_
+          if (this.app && this.app.gestures) {
+            const lib = this.app.gestures.definitions;
+            if (lib && lib[gestureKey]) {
+              this.app.gestures.triggerGesture(gestureKey, lib[gestureKey].duration, lib[gestureKey].params && lib[gestureKey].params.emotionIntensity || 1.0);
+              return true;
+            }
+          }
+          console.warn("[Spontaneous] Gesto redirigido no encontrado:", gestureKey);
+          return false;
+        }
+
+        const defs = this.getActionDefinitions();
+        if (!defs[name]) {
+          console.warn("[Spontaneous] Accion desconocida:", name);
+          return false;
+        }
+
+        if (this.activeAction && !force) return false;
+
+        this.activeAction = name;
+        this.actionElapsed = 0.0;
+        this.actionDuration = defs[name].duration;
+        this.actionBlendIn = defs[name].blendIn || 0.45;
+        this.actionBlendOut = defs[name].blendOut || 0.55;
+
+        // Record history
+        this.actionHistory.push(name);
+        if (this.actionHistory.length > 4) this.actionHistory.shift();
+
+        this.timeSinceLastAction = 0.0;
+        this.scheduleNextAction();
+        return true;
+      }
+
+      scheduleNextAction() {
+        // Base delay modulated by spontaneity level (7s - 22s)
+        const base = 10.0 + Math.random() * 12.0;
+        const scale = Math.max(0.3, 1.8 - (this.spontaneityLevel * 0.8));
+        this.nextActionDelay = base * scale;
+      }
+
+      update(dt, state, isSleep) {
+        if (isSleep || !this.autonomyEnabled) {
+          this.resetOffsets();
+          this.activeAction = null;
+          return;
+        }
+
+        // Track inactivity
+        if (state === 'IDLE') {
+          this.idleTime += dt;
+          this.timeSinceLastAction += dt;
+        } else {
+          this.idleTime = 0.0;
+          // While speaking or listening, gentle interrupt of high-movement actions
+          if (this.activeAction === 'BOB_DANCE' || this.activeAction === 'STRETCH') {
+            this.interruptAction();
+          }
+        }
+
+        // Autonomous Action Decision
+        if (!this.activeAction && state === 'IDLE' && this.timeSinceLastAction >= this.nextActionDelay) {
+          this.decideAndExecuteAction();
+        }
+
+        // Animate active action
+        if (this.activeAction) {
+          this.actionElapsed += dt;
+          if (this.actionElapsed >= this.actionDuration) {
+            this.activeAction = null;
+            this.resetOffsets();
+            this.scheduleNextAction();
+          } else {
+            this.computeActionCurves();
+          }
+        }
+      }
+
+      interruptAction() {
+        if (this.activeAction) {
+          // Skip to blend out phase
+          this.actionElapsed = Math.max(this.actionElapsed, this.actionDuration - this.actionBlendOut);
+        }
+      }
+
+      decideAndExecuteAction() {
+        const pool = this.getActionPool();
+        if (pool.length === 0) return;
+
+        // Weighted random selection with anti-repetition filter
+        const candidates = [];
+        for (const item of pool) {
+          let weight = item.weight;
+          // Heavily penalize recently executed actions
+          if (this.actionHistory.includes(item.name)) {
+            const recency = this.actionHistory.lastIndexOf(item.name);
+            weight *= (recency === this.actionHistory.length - 1) ? 0.05 : 0.35;
+          }
+          candidates.push({ name: item.name, weight: Math.max(0.01, weight) });
+        }
+
+        const totalWeight = candidates.reduce((s, c) => s + c.weight, 0);
+        let rnd = Math.random() * totalWeight;
+        let selected = candidates[0].name;
+
+        for (const c of candidates) {
+          if (rnd <= c.weight) {
+            selected = c.name;
+            break;
+          }
+          rnd -= c.weight;
+        }
+
+        this.triggerAction(selected, false);
+      }
+
+      getActionPool() {
+        const pool = [
+          { name: 'ELEGANT_BOW', weight: 1.3 },
+          { name: 'THINKING_DEEP', weight: 1.4 },
+          { name: 'AGREE_WARM_NOD', weight: 1.3 },
+          { name: 'EXPLAIN_POINT', weight: 1.2 },
+          { name: 'ATTENTIVE_LEAN', weight: 1.2 },
+          { name: 'CALM_BREATHE', weight: 1.1 },
+          { name: 'HAIR_ADJUST', weight: 1.0 },
+          { name: 'CONFIDENT_CROSS', weight: 1.1 },
+          { name: 'WELCOME_PRESENT', weight: 1.2 },
+          { name: 'GENTLE_SMILE_SWAY', weight: 1.3 },
+          { name: 'ENCOURAGE_CLAP', weight: 0.9 },
+          { name: 'HEAD_TILT_CURIOUS', weight: 1.4 },
+          { name: 'GREETING_WAVE', weight: 1.2 },
+          { name: 'LOOK_AROUND', weight: 1.2 },
+          { name: 'FIDGET_SWAY', weight: 1.0 },
+          { name: 'WINK_HAPPY', weight: 0.95 },
+          { name: 'PLAYFUL_TONGUE', weight: 0.8 },
+          { name: 'CHEEK_PUFF', weight: 0.7 },
+          { name: 'SHY_HIDE', weight: 0.65 },
+          // ── Nuevas 15 animaciones en pool autónomo ─────────────────────────
+          { name: 'GESTURE_ARMS_CROSSED_CONFIDENT', weight: 1.1 },
+          { name: 'GESTURE_CHIN_TOUCH_THINK',       weight: 1.2 },
+          { name: 'GESTURE_POINT_FORWARD',           weight: 0.9 },
+          { name: 'GESTURE_HEAD_TILT_CUTE',          weight: 1.3 },
+          { name: 'GESTURE_BOW_ELEGANT',             weight: 0.8 },
+          { name: 'GESTURE_HANDS_ON_CHEEKS',         weight: 1.0 },
+          { name: 'GESTURE_ARM_RAISE_SKY',           weight: 0.85 },
+          { name: 'GESTURE_ARMS_REST_NATURAL',       weight: 1.4 },
+          { name: 'GESTURE_HEAD_SHAKE_NO',           weight: 0.7 },
+          { name: 'GESTURE_COUNT_FINGERS',           weight: 0.9 },
+          { name: 'GESTURE_POWER_STANCE',            weight: 0.75 },
+          { name: 'GESTURE_CLAP_GENTLE',             weight: 0.85 },
+          { name: 'GESTURE_LOOK_ASIDE_DREAMY',       weight: 1.2 },
+          { name: 'GESTURE_HAND_WAVE_DENY',          weight: 0.75 },
+          { name: 'GESTURE_WHISPER_SECRET',          weight: 0.90 }
+        ];
+
+        // Prolonged idle actions
+        if (this.idleTime > 25.0) {
+          pool.push({ name: 'STRETCH', weight: 1.4 });
+          pool.push({ name: 'YAWN', weight: 1.0 });
+          pool.push({ name: 'BOB_DANCE', weight: 1.0 });
+        } else {
+          pool.push({ name: 'BOB_DANCE', weight: 0.5 });
+        }
+
+        // Mood modulation
+        if (this.mood === 'cheerful') {
+          pool.forEach(p => {
+            if (['BOB_DANCE', 'WELCOME_PRESENT', 'ENCOURAGE_CLAP', 'WINK_HAPPY'].includes(p.name)) p.weight *= 1.8;
+          });
+        } else if (this.mood === 'playful') {
+          pool.forEach(p => {
+            if (['HAIR_ADJUST', 'PLAYFUL_TONGUE', 'HEAD_TILT_CURIOUS'].includes(p.name)) p.weight *= 1.8;
+          });
+        } else if (this.mood === 'tired') {
+          pool.forEach(p => {
+            if (['CALM_BREATHE', 'YAWN', 'STRETCH'].includes(p.name)) p.weight *= 2.0;
+            if (p.name === 'BOB_DANCE') p.weight *= 0.2;
+          });
+        }
+
+        return pool;
+      }
+
+      getActionDefinitions() {
+        return {
+          ELEGANT_BOW: { duration: 4.2, blendIn: 0.5, blendOut: 0.6 },
+          THINKING_DEEP: { duration: 4.6, blendIn: 0.5, blendOut: 0.6 },
+          AGREE_WARM_NOD: { duration: 3.6, blendIn: 0.35, blendOut: 0.45 },
+          EXPLAIN_POINT: { duration: 4.8, blendIn: 0.45, blendOut: 0.55 },
+          ATTENTIVE_LEAN: { duration: 4.4, blendIn: 0.5, blendOut: 0.6 },
+          CALM_BREATHE: { duration: 5.2, blendIn: 0.6, blendOut: 0.7 },
+          HAIR_ADJUST: { duration: 4.2, blendIn: 0.45, blendOut: 0.55 },
+          CONFIDENT_CROSS: { duration: 4.5, blendIn: 0.5, blendOut: 0.55 },
+          WELCOME_PRESENT: { duration: 4.4, blendIn: 0.45, blendOut: 0.55 },
+          GENTLE_SMILE_SWAY: { duration: 5.0, blendIn: 0.5, blendOut: 0.6 },
+          ENCOURAGE_CLAP: { duration: 3.8, blendIn: 0.35, blendOut: 0.45 },
+          STRETCH: { duration: 4.8, blendIn: 0.6, blendOut: 0.7 },
+          BOB_DANCE: { duration: 6.8, blendIn: 0.45, blendOut: 0.6 },
+          GREETING_WAVE: { duration: 3.8, blendIn: 0.35, blendOut: 0.55 },
+          YAWN: { duration: 4.2, blendIn: 0.5, blendOut: 0.6 },
+          HEAD_TILT_CURIOUS: { duration: 3.4, blendIn: 0.4, blendOut: 0.5 },
+          LOOK_AROUND: { duration: 5.2, blendIn: 0.5, blendOut: 0.55 },
+          PLAYFUL_TONGUE: { duration: 3.0, blendIn: 0.35, blendOut: 0.45 },
+          CHEEK_PUFF: { duration: 3.4, blendIn: 0.4, blendOut: 0.5 },
+          FIDGET_SWAY: { duration: 4.2, blendIn: 0.5, blendOut: 0.6 },
+          SHY_HIDE: { duration: 3.4, blendIn: 0.4, blendOut: 0.5 },
+          WINK_HAPPY: { duration: 2.8, blendIn: 0.3, blendOut: 0.45 }
+        };
+      }
+
+      computeActionCurves() {
+        const t = this.actionElapsed;
+        const dur = this.actionDuration;
+
+        // Calculate smooth Hermite/Sine envelope alpha (0.0 -> 1.0 -> 0.0)
+        let alpha = 1.0;
+        if (t < this.actionBlendIn) {
+          const s = t / this.actionBlendIn;
+          alpha = Math.sin(s * Math.PI * 0.5);
+        } else if (t > dur - this.actionBlendOut) {
+          const s = (dur - t) / this.actionBlendOut;
+          alpha = Math.sin(Math.max(0.0, s) * Math.PI * 0.5);
+        }
+
+        this.resetOffsets();
+
+        switch (this.activeAction) {
+          case 'ELEGANT_BOW': {
+            // Distinguished, respectful executive bow with graceful hand to chest
+            const phase = Math.sin((t / dur) * Math.PI);
+            this.offsets.angleY = -phase * 16.0 * alpha;
+            this.offsets.posY = -phase * 14.0 * alpha;
+            this.offsets.posZ = -phase * 0.45 * alpha;
+            this.offsets.shoulderL = -phase * 0.40 * alpha;
+            this.offsets.armL = phase * 0.55 * alpha;
+            this.offsets.sleeveL = phase * 0.45 * alpha;
+            this.offsets.shoulderR = -phase * 0.25 * alpha;
+            this.offsets.armR = -phase * 0.20 * alpha;
+            this.offsets.eyeSmileBonus = phase * 0.85 * alpha;
+            this.offsets.eyeOpenBonus = -phase * 0.35 * alpha;
+            this.offsets.mouthFormBonus = phase * 0.75 * alpha;
+            this.offsets.cheekBonus = phase * 0.30 * alpha;
+            break;
+          }
+
+          case 'THINKING_DEEP': {
+            // Deep reflective analytical stance: hand near chin, upward gaze, contemplative tilt
+            const s = Math.sin((t / dur) * Math.PI);
+            this.offsets.shoulderR = s * 0.55 * alpha;
+            this.offsets.armR = -s * 0.75 * alpha;
+            this.offsets.sleeveR = s * 0.60 * alpha;
+            this.offsets.sleeveLR = s * 0.45 * alpha;
+            this.offsets.angleZ = s * 9.0 * alpha;
+            this.offsets.angleY = s * 8.0 * alpha;
+            this.offsets.angleX = s * 6.0 * alpha;
+            this.offsets.eyeSmileBonus = -s * 0.15 * alpha;
+            this.offsets.mouthFormBonus = s * 0.30 * alpha;
+            this.offsets.chestZ = s * 0.25 * alpha;
+            break;
+          }
+
+          case 'AGREE_WARM_NOD': {
+            // Warm rhythmic double nod of respectful approval and understanding
+            const nod = Math.sin(t * 5.5) * Math.sin((t / dur) * Math.PI);
+            this.offsets.angleY = (nod * 12.0 - 2.0) * alpha;
+            this.offsets.posY = (nod * 6.0) * alpha;
+            this.offsets.shoulderL = -nod * 0.20 * alpha;
+            this.offsets.shoulderR = -nod * 0.20 * alpha;
+            this.offsets.eyeSmileBonus = 0.95 * alpha;
+            this.offsets.mouthFormBonus = 0.90 * alpha;
+            this.offsets.cheekBonus = 0.40 * alpha;
+            break;
+          }
+
+          case 'EXPLAIN_POINT': {
+            // Eloquent didactic explanation with left arm/sleeve gesturing smoothly
+            const g = Math.sin(t * 3.8);
+            const env = Math.sin((t / dur) * Math.PI);
+            this.offsets.shoulderL = env * 0.50 * alpha;
+            this.offsets.armL = (env * 0.45 + g * 0.20) * alpha;
+            this.offsets.sleeveL = (env * 0.55 + g * 0.25) * alpha;
+            this.offsets.angleX = (g * 7.0) * alpha;
+            this.offsets.angleY = (env * 5.0) * alpha;
+            this.offsets.bodyX = (g * 4.0) * alpha;
+            this.offsets.chestZ = (-g * 0.30) * alpha;
+            this.offsets.mouthFormBonus = 0.70 * alpha;
+            this.offsets.eyeSmileBonus = 0.60 * alpha;
+            break;
+          }
+
+          case 'ATTENTIVE_LEAN': {
+            // Attentive forward lean of professional active listening and keen interest
+            const s = Math.sin((t / dur) * Math.PI);
+            this.offsets.posZ = s * 0.65 * alpha;
+            this.offsets.posY = s * 8.0 * alpha;
+            this.offsets.angleY = s * 7.0 * alpha;
+            this.offsets.angleZ = s * 6.0 * alpha;
+            this.offsets.shoulderL = s * 0.25 * alpha;
+            this.offsets.shoulderR = s * 0.25 * alpha;
+            this.offsets.eyeOpenBonus = s * 0.35 * alpha;
+            this.offsets.eyeSmileBonus = s * 0.50 * alpha;
+            this.offsets.mouthFormBonus = s * 0.70 * alpha;
+            break;
+          }
+
+          case 'CALM_BREATHE': {
+            // Mindfulness deep breath: slow inhalation raising chest/shoulders, peaceful eyes
+            const s = Math.sin((t / dur) * Math.PI);
+            this.offsets.breathBonus = s * 1.0 * alpha;
+            this.offsets.chestZ = s * 0.45 * alpha;
+            this.offsets.shoulderL = s * 0.65 * alpha;
+            this.offsets.shoulderR = s * 0.65 * alpha;
+            this.offsets.angleY = s * 8.0 * alpha;
+            this.offsets.eyeOpenBonus = -s * 0.60 * alpha;
+            this.offsets.eyeSmileBonus = s * 0.80 * alpha;
+            this.offsets.mouthFormBonus = s * 0.50 * alpha;
+            break;
+          }
+
+          case 'HAIR_ADJUST': {
+            // Sophisticated natural gesture adjusting fringe/hair with right hand
+            const s = Math.sin((t / dur) * Math.PI);
+            this.offsets.shoulderR = s * 0.70 * alpha;
+            this.offsets.armR = -s * 0.85 * alpha;
+            this.offsets.sleeveR = s * 0.75 * alpha;
+            this.offsets.angleX = s * 10.0 * alpha;
+            this.offsets.angleZ = -s * 8.0 * alpha;
+            this.offsets.bodyZ = s * 4.0 * alpha;
+            this.offsets.eyeSmileBonus = s * 0.80 * alpha;
+            this.offsets.mouthFormBonus = s * 0.75 * alpha;
+            this.offsets.cheekBonus = s * 0.40 * alpha;
+            break;
+          }
+
+          case 'CONFIDENT_CROSS': {
+            // Confident executive poise: firm posture, subtle reassuring smile
+            const s = Math.sin((t / dur) * Math.PI);
+            this.offsets.shoulderL = s * 0.40 * alpha;
+            this.offsets.shoulderR = s * 0.40 * alpha;
+            this.offsets.armL = -s * 0.50 * alpha;
+            this.offsets.armR = -s * 0.50 * alpha;
+            this.offsets.sleeveL = s * 0.40 * alpha;
+            this.offsets.sleeveR = s * 0.40 * alpha;
+            this.offsets.angleY = s * 5.0 * alpha;
+            this.offsets.bodyY = s * 6.0 * alpha;
+            this.offsets.mouthFormBonus = s * 0.80 * alpha;
+            this.offsets.eyeSmileBonus = s * 0.65 * alpha;
+            break;
+          }
+
+          case 'WELCOME_PRESENT': {
+            // Gracious presentation gesture: right arm smoothly opening outwards
+            const s = Math.sin((t / dur) * Math.PI);
+            this.offsets.shoulderR = s * 0.60 * alpha;
+            this.offsets.armR = s * 0.80 * alpha;
+            this.offsets.sleeveR = s * 0.70 * alpha;
+            this.offsets.bodyX = s * 8.0 * alpha;
+            this.offsets.bodyZ = -s * 5.0 * alpha;
+            this.offsets.angleZ = -s * 6.0 * alpha;
+            this.offsets.angleY = -s * 4.0 * alpha;
+            this.offsets.eyeSmileBonus = s * 0.90 * alpha;
+            this.offsets.mouthFormBonus = s * 0.85 * alpha;
+            break;
+          }
+
+          case 'GENTLE_SMILE_SWAY': {
+            // Harmonic, soothing rhythmic sway with warm radiant smile
+            const sway = Math.sin(t * 3.2);
+            const env = Math.sin((t / dur) * Math.PI);
+            this.offsets.bodyZ = sway * 7.0 * alpha * env;
+            this.offsets.bodyX = sway * 5.0 * alpha * env;
+            this.offsets.angleZ = -sway * 8.0 * alpha * env;
+            this.offsets.hipZ = sway * 0.55 * alpha * env;
+            this.offsets.chestZ = -sway * 0.45 * alpha * env;
+            this.offsets.shoulderL = sway * 0.25 * alpha * env;
+            this.offsets.shoulderR = -sway * 0.25 * alpha * env;
+            this.offsets.eyeSmileBonus = 0.90 * alpha;
+            this.offsets.mouthFormBonus = 0.85 * alpha;
+            break;
+          }
+
+          case 'ENCOURAGE_CLAP': {
+            // Elegant, graceful applause with hands centered at chest
+            const clap = Math.abs(Math.sin(t * 10.0));
+            const env = Math.sin((t / dur) * Math.PI);
+            this.offsets.shoulderL = (0.35 + clap * 0.15) * alpha * env;
+            this.offsets.shoulderR = (0.35 + clap * 0.15) * alpha * env;
+            this.offsets.armL = (-0.55 - clap * 0.15) * alpha * env;
+            this.offsets.armR = (-0.55 - clap * 0.15) * alpha * env;
+            this.offsets.sleeveL = (0.45 + clap * 0.15) * alpha * env;
+            this.offsets.sleeveR = (0.45 + clap * 0.15) * alpha * env;
+            this.offsets.posY = (clap * 4.0) * alpha * env;
+            this.offsets.eyeSmileBonus = 0.95 * alpha;
+            this.offsets.mouthFormBonus = 0.90 * alpha;
+            this.offsets.cheekBonus = 0.40 * alpha;
+            break;
+          }
+
+
+          case 'BOB_DANCE': {
+            // Rhythmic joyful dance with arms swinging, hips and chest counter-swaying, head bobbing
+            const beat = Math.sin(t * 5.4);
+            const bounce = Math.abs(Math.sin(t * 5.4));
+            this.offsets.bodyZ = beat * 9.5 * alpha;
+            this.offsets.bodyX = beat * 6.0 * alpha;
+            this.offsets.angleZ = -beat * 12.0 * alpha;
+            this.offsets.angleY = (bounce * 8.0 - 4.0) * alpha;
+            this.offsets.posY = bounce * 32.0 * alpha;
+            this.offsets.posX = beat * 16.0 * alpha;
+            // Coordinated arm and sleeve dance motions
+            this.offsets.shoulderL = beat * 0.45 * alpha;
+            this.offsets.shoulderR = -beat * 0.45 * alpha;
+            this.offsets.armL = beat * 0.40 * alpha;
+            this.offsets.armR = -beat * 0.40 * alpha;
+            this.offsets.sleeveL = beat * 0.45 * alpha;
+            this.offsets.sleeveR = -beat * 0.45 * alpha;
+            this.offsets.hipZ = beat * 0.70 * alpha;
+            this.offsets.chestZ = -beat * 0.55 * alpha;
+            this.offsets.mouthFormBonus = 0.85 * alpha;
+            this.offsets.eyeSmileBonus = 0.75 * alpha;
+            this.offsets.cheekBonus = 0.35 * alpha;
+            break;
+          }
+
+          case 'GREETING_WAVE': {
+            // Right arm raises high and waves enthusiastically at the user, friendly tilt and smile
+            const wave = Math.sin(t * 11.0);
+            this.offsets.shoulderR = 0.85 * alpha;
+            this.offsets.armR = (0.55 + wave * 0.35) * alpha;
+            this.offsets.armBR = 0.50 * alpha;
+            this.offsets.sleeveR = 0.75 * alpha;
+            this.offsets.sleeveLR = (0.60 + wave * 0.30) * alpha;
+            this.offsets.shoulderL = -0.15 * alpha;
+            this.offsets.chestZ = 0.35 * alpha;
+            this.offsets.bodyZ = 3.5 * alpha;
+            this.offsets.angleZ = 7.5 * alpha;
+            this.offsets.angleY = 3.0 * alpha;
+            this.offsets.posY = Math.abs(wave) * 8.0 * alpha;
+            this.offsets.eyeSmileBonus = 0.90 * alpha;
+            this.offsets.mouthFormBonus = 0.85 * alpha;
+            this.offsets.cheekBonus = 0.45 * alpha;
+            break;
+          }
+
+          case 'STRETCH': {
+            // Full relaxing stretch: both arms reach back/up, chest expands, head arches back, deep breath
+            const phase = t / dur;
+            const stretchCurve = Math.sin(phase * Math.PI);
+            this.offsets.angleY = stretchCurve * 18.0 * alpha;
+            this.offsets.angleZ = Math.sin(phase * Math.PI * 2) * 6.0 * alpha;
+            this.offsets.posZ = stretchCurve * 0.65 * alpha;
+            this.offsets.breathBonus = stretchCurve * 1.0 * alpha;
+            this.offsets.eyeOpenBonus = -stretchCurve * 0.65 * alpha;
+            this.offsets.mouthFormBonus = stretchCurve * 0.45 * alpha;
+            this.offsets.mouthOpenBonus = stretchCurve * 0.40 * alpha;
+            this.offsets.shoulderL = stretchCurve * 0.65 * alpha;
+            this.offsets.shoulderR = stretchCurve * 0.65 * alpha;
+            this.offsets.armL = stretchCurve * 0.50 * alpha;
+            this.offsets.armR = stretchCurve * 0.50 * alpha;
+            this.offsets.sleeveL = stretchCurve * 0.60 * alpha;
+            this.offsets.sleeveR = stretchCurve * 0.60 * alpha;
+            this.offsets.chestZ = stretchCurve * 0.45 * alpha;
+            break;
+          }
+
+          case 'YAWN': {
+            // Sleepy stretch with left hand raised toward mouth, head tilts up, wide jaw opening
+            const phase = t / dur;
+            const openCurve = Math.sin(phase * Math.PI);
+            this.offsets.angleY = openCurve * 14.0 * alpha;
+            this.offsets.angleZ = -openCurve * 6.0 * alpha;
+            this.offsets.mouthOpenBonus = Math.pow(openCurve, 1.4) * 1.45 * alpha;
+            this.offsets.eyeOpenBonus = -openCurve * 0.85 * alpha;
+            this.offsets.breathBonus = openCurve * 0.90 * alpha;
+            this.offsets.shoulderL = openCurve * 0.60 * alpha;
+            this.offsets.armL = openCurve * 0.55 * alpha;
+            this.offsets.sleeveL = openCurve * 0.60 * alpha;
+            this.offsets.cheekBonus = openCurve * 0.45 * alpha;
+            break;
+          }
+
+          case 'HEAD_TILT_CURIOUS': {
+            // Expressive curious lean: deep head tilt, perked shoulder, wide sparkling eyes
+            const tilt = Math.sin((t / dur) * Math.PI);
+            this.offsets.angleZ = -tilt * 22.0 * alpha;
+            this.offsets.angleX = tilt * 6.0 * alpha;
+            this.offsets.angleY = -tilt * 4.0 * alpha;
+            this.offsets.posZ = tilt * 0.45 * alpha;
+            this.offsets.shoulderR = tilt * 0.40 * alpha;
+            this.offsets.shoulderL = -tilt * 0.20 * alpha;
+            this.offsets.armR = tilt * 0.25 * alpha;
+            this.offsets.sleeveR = tilt * 0.30 * alpha;
+            this.offsets.chestZ = -tilt * 0.35 * alpha;
+            this.offsets.eyeOpenBonus = tilt * 0.40 * alpha;
+            this.offsets.mouthFormBonus = tilt * 0.35 * alpha;
+            break;
+          }
+
+          case 'LOOK_AROUND': {
+            // Sweeping observational gaze with torso following
+            const p = t / dur;
+            const yaw = Math.sin(p * Math.PI * 2.0);
+            this.offsets.angleX = yaw * 24.0 * alpha;
+            this.offsets.bodyX = yaw * 10.0 * alpha;
+            this.offsets.bodyZ = yaw * 5.0 * alpha;
+            this.offsets.angleY = Math.cos(p * Math.PI * 2.0) * 9.0 * alpha;
+            this.offsets.eyeOpenBonus = 0.20 * alpha;
+            this.offsets.shoulderL = yaw * 0.20 * alpha;
+            this.offsets.shoulderR = -yaw * 0.20 * alpha;
+            this.offsets.chestZ = yaw * 0.35 * alpha;
+            break;
+          }
+
+          case 'PLAYFUL_TONGUE': {
+            // Adorable wink, cheeky shoulder shrug, tongue poke, blush
+            const p = Math.sin((t / dur) * Math.PI);
+            this.offsets.angleZ = p * 15.0 * alpha;
+            this.offsets.angleX = -p * 5.0 * alpha;
+            this.offsets.tongueBonus = p * 1.0 * alpha;
+            this.offsets.cheekBonus = p * 0.65 * alpha;
+            this.offsets.mouthFormBonus = p * 0.50 * alpha;
+            this.offsets.exp3Bonus = p * 0.95 * alpha;
+            this.offsets.shoulderL = -p * 0.25 * alpha;
+            this.offsets.shoulderR = p * 0.45 * alpha;
+            this.offsets.armR = p * 0.30 * alpha;
+            this.offsets.sleeveR = p * 0.35 * alpha;
+            this.offsets.hipZ = p * 0.40 * alpha;
+            break;
+          }
+
+          case 'CHEEK_PUFF': {
+            // Cute dramatic pouting: puffed cheeks, frown, shoulders hunch up
+            const p = Math.sin((t / dur) * Math.PI);
+            this.offsets.cheekPuffBonus = p * 1.0 * alpha;
+            this.offsets.angleX = -p * 10.0 * alpha;
+            this.offsets.angleY = -p * 6.0 * alpha;
+            this.offsets.shoulderL = p * 0.35 * alpha;
+            this.offsets.shoulderR = p * 0.35 * alpha;
+            this.offsets.mouthFormBonus = -p * 0.45 * alpha;
+            this.offsets.posZ = -p * 0.20 * alpha;
+            this.offsets.chestZ = -p * 0.25 * alpha;
+            break;
+          }
+
+
+          case 'FIDGET_SWAY': {
+            // Relaxed weight shift with natural hip/arm swaying
+            const s = Math.sin((t / dur) * Math.PI);
+            this.offsets.posX = s * 22.0 * alpha;
+            this.offsets.bodyZ = s * 8.5 * alpha;
+            this.offsets.angleZ = -s * 7.0 * alpha;
+            this.offsets.angleY = s * 4.5 * alpha;
+            this.offsets.hipZ = s * 0.65 * alpha;
+            this.offsets.chestZ = -s * 0.45 * alpha;
+            this.offsets.shoulderL = s * 0.25 * alpha;
+            this.offsets.shoulderR = -s * 0.25 * alpha;
+            this.offsets.armL = s * 0.30 * alpha;
+            this.offsets.armR = -s * 0.30 * alpha;
+            break;
+          }
+
+          case 'SHY_HIDE': {
+            // Bashful: arms pull inward protectively, head turns aside, deep blush
+            const p = Math.sin((t / dur) * Math.PI);
+            this.offsets.angleY = -p * 14.0 * alpha;
+            this.offsets.angleZ = p * 10.0 * alpha;
+            this.offsets.angleX = -p * 8.0 * alpha;
+            this.offsets.shoulderL = -p * 0.35 * alpha;
+            this.offsets.shoulderR = -p * 0.35 * alpha;
+            this.offsets.armL = -p * 0.25 * alpha;
+            this.offsets.armR = -p * 0.25 * alpha;
+            this.offsets.sleeveL = -p * 0.30 * alpha;
+            this.offsets.sleeveR = -p * 0.30 * alpha;
+            this.offsets.cheekBonus = p * 0.95 * alpha;
+            this.offsets.eyeSmileBonus = p * 0.60 * alpha;
+            this.offsets.mouthFormBonus = p * 0.35 * alpha;
+            break;
+          }
+
+          case 'WINK_HAPPY': {
+            // Bright cheerful wink with cute head tilt and shoulder perk
+            const p = Math.sin((t / dur) * Math.PI);
+            this.offsets.angleZ = -p * 11.0 * alpha;
+            this.offsets.angleY = p * 5.0 * alpha;
+            this.offsets.exp3Bonus = p * 1.0 * alpha;
+            this.offsets.eyeSmileBonus = p * 0.85 * alpha;
+            this.offsets.mouthFormBonus = p * 0.75 * alpha;
+            this.offsets.cheekBonus = p * 0.50 * alpha;
+            this.offsets.shoulderR = p * 0.35 * alpha;
+            this.offsets.sleeveR = p * 0.30 * alpha;
+            this.offsets.posY = p * 10.0 * alpha;
+            break;
+          }
+        }
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 4. CONTROLADOR DE FLOTACIÓN HOLOGRÁFICA (HolographicFloatController)
+    // ══════════════════════════════════════════════════════════════════════════
+    class HolographicFloatController {
+      constructor() {
+        this.phase = 0.0;
+        this.currentMode = 'IDLE';
+        this.speed = 1.0;
+        this.amplitudeMultiplier = 1.0;
+        this.enabled = true;
+
+        // Salidas suavizadas
+        this.floatY = 0.0;
+        this.floatX = 0.0;
+        this.floatScale = 1.0;
+        this.bodyTiltZ = 0.0;
+        this.chestTiltZ = 0.0;
+        this.hipTiltZ = 0.0;
+
+        // Parámetros de transición por estado
+        this.targetBaseElevation = 0.0;
+        this.currentBaseElevation = 0.0;
+        this.targetAmpY = 13.5;
+        this.currentAmpY = 13.5;
+        this.targetSpeed = 0.85;
+        this.currentSpeed = 0.85;
+      }
+
+      setMode(mode) {
+        this.currentMode = String(mode || 'IDLE').toUpperCase();
+        switch (this.currentMode) {
+          case 'SLEEPING':
+            this.targetAmpY = 5.0;
+            this.targetSpeed = 0.45;
+            this.targetBaseElevation = 4.0;
+            break;
+          case 'LISTENING':
+            this.targetAmpY = 7.5;
+            this.targetSpeed = 0.80;
+            this.targetBaseElevation = -2.0;
+            break;
+          case 'THINKING':
+          case 'SEARCHING':
+          case 'ANALYZING':
+            this.targetAmpY = 11.0;
+            this.targetSpeed = 1.25;
+            this.targetBaseElevation = -13.0; // Elevación ascendente sutil al computar
+            break;
+          case 'SPEAKING':
+            this.targetAmpY = 8.5;
+            this.targetSpeed = 0.95;
+            this.targetBaseElevation = -5.0;
+            break;
+          case 'ELEGANT_BOW':
+          case 'WELCOME_PRESENT':
+            this.targetAmpY = 10.0;
+            this.targetSpeed = 1.05;
+            this.targetBaseElevation = -6.0;
+            break;
+          case 'ERROR':
+            this.targetAmpY = 6.0;
+            this.targetSpeed = 0.70;
+            this.targetBaseElevation = 2.0;
+            break;
+          default: // IDLE
+            this.targetAmpY = 13.5;
+            this.targetSpeed = 0.85;
+            this.targetBaseElevation = 0.0;
+            break;
+        }
+      }
+
+      update(dt, state, isSpeaking) {
+        if (!this.enabled) {
+          this.floatY = 0.0;
+          this.floatX = 0.0;
+          this.floatScale = 1.0;
+          this.bodyTiltZ = 0.0;
+          this.chestTiltZ = 0.0;
+          this.hipTiltZ = 0.0;
+          return;
+        }
+
+        const effectiveState = isSpeaking ? 'SPEAKING' : state;
+        if (effectiveState !== this.currentMode && this.currentMode !== 'ELEGANT_BOW') {
+          this.setMode(effectiveState);
+        }
+
+        // Interpolación gradual de estado
+        this.currentAmpY += (this.targetAmpY * this.amplitudeMultiplier - this.currentAmpY) * Math.min(1.0, dt * 2.5);
+        this.currentSpeed += (this.targetSpeed * this.speed - this.currentSpeed) * Math.min(1.0, dt * 2.5);
+        this.currentBaseElevation += (this.targetBaseElevation - this.currentBaseElevation) * Math.min(1.0, dt * 3.0);
+
+        // Fase continua e ininterrumpida
+        this.phase += dt * (1.55 * this.currentSpeed);
+
+        // Oscilación vertical multi-armónica (Y)
+        const sin1 = Math.sin(this.phase);
+        const sin2 = Math.sin(this.phase * 0.48 + 1.15);
+        this.floatY = this.currentBaseElevation + (sin1 * 0.78 + sin2 * 0.22) * this.currentAmpY;
+
+        // Deriva horizontal lenta (X)
+        this.floatX = Math.sin(this.phase * 0.52 + 0.8) * (this.currentAmpY * 0.26);
+
+        // Pulsación sutil de profundidad 3D (0.35%)
+        this.floatScale = 1.0 + (sin1 * 0.0035);
+
+        // Micro-torsión física en columna y cadera
+        this.bodyTiltZ = sin1 * 1.35;
+        this.chestTiltZ = sin2 * 0.85;
+        this.hipTiltZ = -sin1 * 1.10;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 4.5 MOTOR CINEMÁTICO DE VIDEOJUEGO Y ACCESORIOS (EdithGameMotionEngine)
+    // ══════════════════════════════════════════════════════════════════════════
+    class EdithGameMotionEngine {
+      constructor(app) {
+        this.app = app;
+        this.t = 0.0;
+        this.gameMode = 'idle'; // 'idle', 'combat', 'study', 'celebrate'
+        this.gameModeTimer = 0.0;
+
+        // RPG Weight shifting stance
+        this.stanceCycleTimer = 0.0;
+        this.stanceNextShift = 4.5;
+        this.targetWeightShift = 0.0; // -1.0 (left foot) to 1.0 (right foot)
+        this.currentWeightShift = 0.0;
+        this.footAngleL = 0.0;
+        this.footAngleR = 0.0;
+        this.hipUp = 0.0;
+        this.hipDown = 0.0;
+
+        // Props state
+        this.props = {
+          grimoire: { active: false, timer: 0.0, pageTurn: 0.0, value: 0.0 },
+          hologramRings: { active: false, timer: 0.0, rot: 0.0, flip: 0.0, persp: 0.0, circles: [0, 0, 0, 0], value: 0.0 },
+          flameAura: { active: false, timer: 0.0, flicker: 0.0, value: 0.0, rot: 0.0 }
+        };
+
+        // Animal/Fantasy Secondary Physics (Wings, Tail, Hat Ears)
+        this.wingWave = 0.0;
+        this.wings = [0, 0, 0, 0]; // L1..4, R1..4
+        this.tailWave = 0.0;
+        this.tailNodes = [0, 0, 0, 0, 0, 0, 0]; // 1..7
+        this.earTwitchTimer = 0.0;
+        this.earTwitchNext = 3.5;
+        this.earTwitchL = 0.0;
+        this.earTwitchR = 0.0;
+
+        // Living Mascot Doll Companion
+        this.doll = {
+          x: 0.0,
+          y: 0.0,
+          z: 0.0,
+          angleL: 0.0,
+          angleR: 0.0,
+          earL: 0.0,
+          earR: 0.0,
+          tail: 0.0,
+          arm: 0.0,
+          phase: 0.0,
+          tapTimer: 0.0
+        };
+
+        // Expression Tremors / Anime FX
+        this.pupilQuake = 0.0;
+        this.eyeSquint = 0.0;
+      }
+
+      setGameMode(mode) {
+        this.gameMode = mode || 'idle';
+        if (mode === 'combat') {
+          this.setPropState('flameAura', true, 6.0);
+          this.setPropState('hologramRings', true, 6.0);
+        } else if (mode === 'study') {
+          this.setPropState('hologramRings', true, 8.0);
+          this.setPropState('hologramRings', true, 8.0);
+        } else if (mode === 'celebrate') {
+          this.setPropState('flameAura', true, 3.5);
+          this.setPropState('hologramRings', true, 3.5);
+        }
+      }
+
+      setPropState(name, active, duration = 0.0) {
+        let key = name;
+        if (name === 'book' || name === 'grimoire' || name === 'tablet') key = 'grimoire';
+        if (name === 'rings' || name === 'hologram' || name === 'hologram_rings') key = 'hologramRings';
+        if (name === 'fire' || name === 'flame' || name === 'aura' || name === 'halo') key = 'flameAura';
+
+        if (this.props[key]) {
+          this.props[key].active = Boolean(active);
+          this.props[key].timer = duration > 0 ? duration : (active ? 999999 : 0.0);
+        }
+      }
+
+      triggerDollInteraction() {
+        this.doll.tapTimer = 2.4;
+      }
+
+      triggerShock() {
+        this.pupilQuake = 1.0;
+      }
+
+      update(dt, state, isSpeaking) {
+        this.t += dt;
+        const isSleep = (state === 'SLEEPING');
+
+        // ── 1. Weight Shifting Stance ──────────────────────────────────────────
+        if (isSleep) {
+          this.targetWeightShift = 0.0;
+        } else {
+          this.stanceCycleTimer += dt;
+          if (this.stanceCycleTimer >= this.stanceNextShift) {
+            this.stanceCycleTimer = 0.0;
+            this.stanceNextShift = 4.0 + Math.random() * 4.5;
+            const pick = Math.random();
+            if (pick < 0.40) {
+              this.targetWeightShift = 0.45 + Math.random() * 0.45; // right foot forward
+            } else if (pick < 0.80) {
+              this.targetWeightShift = -(0.45 + Math.random() * 0.45); // left foot forward
+            } else {
+              this.targetWeightShift = (Math.random() - 0.5) * 0.3; // relaxed center
+            }
+          }
+        }
+
+        // Smooth stance interpolation
+        this.currentWeightShift += (this.targetWeightShift - this.currentWeightShift) * Math.min(1.0, dt * 2.2);
+
+        // Foot angles and hip tilting
+        const stanceStrength = isSleep ? 0.2 : 1.0;
+        this.footAngleL = -this.currentWeightShift * 8.5 * stanceStrength;
+        this.footAngleR = this.currentWeightShift * 8.5 * stanceStrength;
+        this.hipUp = Math.max(0, this.currentWeightShift) * 0.75 * stanceStrength;
+        this.hipDown = Math.max(0, -this.currentWeightShift) * 0.75 * stanceStrength;
+
+        // ── 2. Props Management ──────────────────────────────────────────────
+        // Grimoire / Tablet
+        const pGrim = this.props.grimoire;
+        if (pGrim.timer > 0) {
+          pGrim.timer -= dt;
+          if (pGrim.timer <= 0) pGrim.active = false;
+        }
+        const targetGrim = pGrim.active && !isSleep ? 1.0 : 0.0;
+        pGrim.value += (targetGrim - pGrim.value) * Math.min(1.0, dt * 5.0);
+        if (pGrim.value > 0.05) {
+          pGrim.pageTurn = (Math.sin(this.t * 3.2) + 1.0) * 0.5;
+        } else {
+          pGrim.pageTurn = 0.0;
+        }
+
+        // Holographic Rings & Glyphs
+        const pRings = this.props.hologramRings;
+        if (pRings.timer > 0) {
+          pRings.timer -= dt;
+          if (pRings.timer <= 0) pRings.active = false;
+        }
+        const targetRings = pRings.active && !isSleep ? 1.0 : 0.0;
+        pRings.value += (targetRings - pRings.value) * Math.min(1.0, dt * 4.5);
+        if (pRings.value > 0.01) {
+          pRings.rot = (pRings.rot + dt * 140.0) % 360;
+          pRings.flip = Math.sin(this.t * 2.8) * 30.0;
+          pRings.persp = (Math.sin(this.t * 1.6) + 1.0) * 0.5;
+          for (let c = 0; c < 4; c++) {
+            pRings.circles[c] = (this.t * (80.0 + c * 35.0)) % 360;
+          }
+        }
+
+        // Jibril-style Rotating Anime Light Halo (replaces Flame Aura / Spirit)
+        const pFlame = this.props.flameAura;
+        if (pFlame.timer > 0) {
+          pFlame.timer -= dt;
+          if (pFlame.timer <= 0) pFlame.active = false;
+        }
+        const targetFlame = pFlame.active && !isSleep ? 1.0 : 0.0;
+        pFlame.value += (targetFlame - pFlame.value) * Math.min(1.0, dt * 5.5);
+        if (pFlame.value > 0.005) {
+          pFlame.rot = (pFlame.rot + dt * 0.92) % (Math.PI * 2);
+          pFlame.flicker = Math.max(0.0, Math.min(1.0, pFlame.value * (0.9 + Math.sin(this.t * 4.5) * 0.1)));
+        } else {
+          pFlame.flicker = 0.0;
+        }
+
+        // ── 3. Fantasy Secondary Physics (Wings, Tail, Hat Ears) ──────────────
+        // Wings flutter wave
+        const wingSpeed = isSleep ? 0.7 : (isSpeaking ? 3.6 : 2.0);
+        this.wingWave += dt * wingSpeed;
+        for (let i = 0; i < 4; i++) {
+          const lag = i * 0.28;
+          this.wings[i] = Math.sin(this.wingWave - lag) * (1.0 - i * 0.18);
+        }
+
+        // Tail whip-like sinusoidal chain
+        const tailSpeed = isSleep ? 0.8 : (isSpeaking ? 2.8 : 1.7);
+        this.tailWave += dt * tailSpeed;
+        for (let i = 0; i < 7; i++) {
+          const phaseLag = i * 0.42;
+          this.tailNodes[i] = Math.sin(this.tailWave - phaseLag) * (1.0 - i * 0.08);
+        }
+
+        // Hat Ears twitch
+        if (!isSleep) {
+          this.earTwitchTimer += dt;
+          if (this.earTwitchTimer >= this.earTwitchNext) {
+            this.earTwitchTimer = 0.0;
+            this.earTwitchNext = 3.0 + Math.random() * 4.5;
+            if (Math.random() < 0.5) {
+              this.earTwitchL = 1.0;
+            } else {
+              this.earTwitchR = 1.0;
+            }
+          }
+        }
+        this.earTwitchL += (0.0 - this.earTwitchL) * Math.min(1.0, dt * 14.0);
+        this.earTwitchR += (0.0 - this.earTwitchR) * Math.min(1.0, dt * 14.0);
+
+        // ── 4. Living Mascot Doll Companion ──────────────────────────────────
+        this.doll.phase += dt * (isSleep ? 1.0 : 2.4);
+        if (this.doll.tapTimer > 0) {
+          this.doll.tapTimer -= dt;
+          this.doll.arm = Math.sin(this.t * 28.0) * 0.85;
+          this.doll.earL = Math.sin(this.t * 32.0) * 0.95;
+          this.doll.earR = -Math.sin(this.t * 32.0) * 0.95;
+          this.doll.tail = Math.sin(this.t * 24.0) * 0.9;
+          this.doll.angleL = Math.sin(this.t * 18.0) * 15.0;
+          this.doll.angleR = -this.doll.angleL;
+          this.doll.x = Math.sin(this.t * 16.0) * 8.0;
+          this.doll.y = Math.abs(Math.sin(this.t * 18.0)) * 14.0;
+        } else {
+          const dSin = Math.sin(this.doll.phase);
+          const dCos = Math.cos(this.doll.phase * 0.85);
+          this.doll.arm = dSin * 0.25;
+          this.doll.earL = dCos * 0.20;
+          this.doll.earR = -dCos * 0.20;
+          this.doll.tail = dSin * 0.35;
+          this.doll.angleL = dSin * 4.0;
+          this.doll.angleR = -dSin * 4.0;
+          this.doll.x = dCos * 2.5;
+          this.doll.y = dSin * 4.0;
+        }
+
+        // ── 5. Expression Tremors ────────────────────────────────────────────
+        this.pupilQuake += (0.0 - this.pupilQuake) * Math.min(1.0, dt * 8.0);
+        this.eyeSquint += (0.0 - this.eyeSquint) * Math.min(1.0, dt * 5.0);
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 5. BIBLIOTECA Y CONTROLADOR DE GESTOS SEMÁNTICOS (GestureController)
+    // ══════════════════════════════════════════════════════════════════════════
+    class GestureController {
+      constructor(app) {
+        this.app = app;
+        this.activeGesture = null;
+        this.gestureName = '';
+        this.elapsed = 0.0;
+        this.duration = 0.0;
+        this.attackTime = 0.45;
+        this.releaseTime = 0.65;
+        this.intensity = 1.0;
+
+        // Memoria de alternancia de brazos durante el habla
+        this.lastArmUsed = 'right';
+        this.speechSegmentCount = 0;
+
+        // Parámetros de articulación corporal y de mangas
+        this.offsets = {
+          shoulderL: 0.0,
+          shoulderR: 0.0,
+          armL: 0.0,
+          armR: 0.0,
+          armBL: 0.0,
+          armBR: 0.0,
+          sleeveL: 0.0,
+          sleeveR: 0.0,
+          sleeveLL: 0.0,
+          sleeveLR: 0.0,
+          chestZ: 0.0,
+          hipZ: 0.0,
+          bodyAngleX: 0.0,
+          bodyAngleY: 0.0,
+          bodyAngleZ: 0.0,
+          posZ: 0.0,
+          posX: 0.0,
+          posY: 0.0,
+          headAngleX: 0.0,
+          headAngleY: 0.0,
+          headAngleZ: 0.0
+        };
+
+        this.definitions = this.buildGestureLibrary();
+      }
+
+      buildGestureLibrary() {
+        return {
+          // ── Explicación con alternancia natural de brazos ─────────────────
+          EXPLAIN_LEFT: {
+            duration: 3.4, attack: 0.45, release: 0.65,
+            params: {
+              shoulderL: 0.65, armL: 0.55, armBL: 0.45, sleeveL: 0.60, sleeveLL: 0.65,
+              shoulderR: -0.15, armR: -0.10, armBR: -0.05, sleeveR: -0.10, sleeveLR: 0.0,
+              chestZ: -0.45, bodyAngleX: 3.5, bodyAngleZ: -2.5, posZ: 0.25,
+              headAngleX: -2.5, headAngleY: 2.0, headAngleZ: -3.5
+            },
+            emotion: 'neutral', emotionIntensity: 0.70
+          },
+          EXPLAIN_RIGHT: {
+            duration: 3.4, attack: 0.45, release: 0.65,
+            params: {
+              shoulderR: 0.65, armR: 0.55, armBR: 0.45, sleeveR: 0.60, sleeveLR: 0.65,
+              shoulderL: -0.15, armL: -0.10, armBL: -0.05, sleeveL: -0.10, sleeveLL: 0.0,
+              chestZ: 0.45, bodyAngleX: -3.5, bodyAngleZ: 2.5, posZ: 0.25,
+              headAngleX: 2.5, headAngleY: 2.0, headAngleZ: 3.5
+            },
+            emotion: 'neutral', emotionIntensity: 0.70
+          },
+          EXPLAIN_BOTH: {
+            duration: 3.8, attack: 0.50, release: 0.70,
+            params: {
+              shoulderL: 0.50, armL: 0.45, armBL: 0.35, sleeveL: 0.50, sleeveLL: 0.55,
+              shoulderR: 0.50, armR: 0.45, armBR: 0.35, sleeveR: 0.50, sleeveLR: 0.55,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: 2.5, bodyAngleZ: 0.0, posZ: 0.45,
+              headAngleX: 0.0, headAngleY: 3.0, headAngleZ: 0.0
+            },
+            emotion: 'happy', emotionIntensity: 0.65
+          },
+
+          // ── Énfasis en conclusiones o datos cruciales ─────────────────────
+          EMPHASIZE: {
+            duration: 2.6, attack: 0.25, release: 0.55,
+            params: {
+              shoulderL: 0.60, shoulderR: 0.60,
+              armL: 0.30, armR: 0.30, armBL: 0.40, armBR: 0.40,
+              sleeveL: 0.45, sleeveR: 0.45, sleeveLL: 0.40, sleeveLR: 0.40,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: -2.0, bodyAngleZ: 0.0, posZ: 0.75,
+              headAngleX: 0.0, headAngleY: -4.5, headAngleZ: 0.0
+            },
+            emotion: 'enthusiastic', emotionIntensity: 0.85
+          },
+
+          // ── Presentación de opciones o resultados ─────────────────────────
+          PRESENT_LEFT: {
+            duration: 4.2, attack: 0.50, release: 0.75,
+            params: {
+              shoulderL: 0.80, armL: 0.70, armBL: 0.60, sleeveL: 0.75, sleeveLL: 0.85,
+              shoulderR: -0.20, armR: -0.15, armBR: -0.10, sleeveR: -0.15, sleeveLR: 0.0,
+              chestZ: -0.65, bodyAngleX: -7.5, bodyAngleY: 1.5, bodyAngleZ: -4.0, posZ: 0.20,
+              headAngleX: -6.0, headAngleY: -1.0, headAngleZ: -5.0, posX: -12.0
+            },
+            emotion: 'curious', emotionIntensity: 0.80
+          },
+          PRESENT_RIGHT: {
+            duration: 4.2, attack: 0.50, release: 0.75,
+            params: {
+              shoulderR: 0.80, armR: 0.70, armBR: 0.60, sleeveR: 0.75, sleeveLR: 0.85,
+              shoulderL: -0.20, armL: -0.15, armBL: -0.10, sleeveL: -0.15, sleeveLL: 0.0,
+              chestZ: 0.65, bodyAngleX: 7.5, bodyAngleY: 1.5, bodyAngleZ: 4.0, posZ: 0.20,
+              headAngleX: 6.0, headAngleY: -1.0, headAngleZ: 5.0, posX: 12.0
+            },
+            emotion: 'curious', emotionIntensity: 0.80
+          },
+
+          // ── Confirmación / Asentimiento ───────────────────────────────────
+          CONFIRM: {
+            duration: 2.8, attack: 0.35, release: 0.50,
+            params: {
+              shoulderL: 0.20, shoulderR: 0.20,
+              armL: 0.15, armR: 0.15, armBL: 0.15, armBR: 0.15,
+              sleeveL: 0.20, sleeveR: 0.20, sleeveLL: 0.20, sleeveLR: 0.20,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: -1.5, bodyAngleZ: 0.0, posZ: 0.30,
+              headAngleX: 0.0, headAngleY: -6.0, headAngleZ: 0.0
+            },
+            emotion: 'happy', emotionIntensity: 0.80
+          },
+
+          // ── Búsqueda / Reflexión / Análisis ───────────────────────────────
+          THINK_ANALYZE: {
+            duration: 3.5, attack: 0.55, release: 0.65,
+            params: {
+              shoulderL: 0.45, armL: 0.35, armBL: 0.30, sleeveL: 0.35, sleeveLL: 0.40,
+              shoulderR: -0.10, armR: 0.0, armBR: 0.0, sleeveR: 0.0, sleeveLR: 0.0,
+              chestZ: -0.35, bodyAngleX: -2.5, bodyAngleY: 3.0, bodyAngleZ: -3.0, posZ: -0.15,
+              headAngleX: 4.5, headAngleY: 5.5, headAngleZ: 7.5
+            },
+            emotion: 'curious', emotionIntensity: 0.85
+          },
+
+          // ── Advertencia / Cuidado ─────────────────────────────────────────
+          WARN_CAUTION: {
+            duration: 3.0, attack: 0.30, release: 0.60,
+            params: {
+              shoulderL: 0.45, shoulderR: 0.45,
+              armL: 0.10, armR: 0.10, armBL: 0.20, armBR: 0.20,
+              sleeveL: 0.25, sleeveR: 0.25, sleeveLL: 0.25, sleeveLR: 0.25,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: 0.0, bodyAngleZ: 0.0, posZ: -0.55,
+              headAngleX: 0.0, headAngleY: -2.0, headAngleZ: 0.0
+            },
+            emotion: 'surprised', emotionIntensity: 0.75
+          },
+
+          // ── Disculpa ──────────────────────────────────────────────────────
+          APOLOGIZE: {
+            duration: 3.2, attack: 0.40, release: 0.60,
+            params: {
+              shoulderL: -0.25, shoulderR: -0.25,
+              armL: -0.15, armR: -0.15, armBL: -0.10, armBR: -0.10,
+              sleeveL: -0.15, sleeveR: -0.15, sleeveLL: -0.10, sleeveLR: -0.10,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: -3.0, bodyAngleZ: 0.0, posZ: -0.20,
+              headAngleX: 0.0, headAngleY: -7.5, headAngleZ: 2.0
+            },
+            emotion: 'sad', emotionIntensity: 0.65
+          },
+
+          // ── Descubrimiento / Eureka ───────────────────────────────────────
+          DISCOVER: {
+            duration: 3.2, attack: 0.28, release: 0.60,
+            params: {
+              shoulderL: 0.70, shoulderR: 0.70,
+              armL: 0.60, armR: 0.60, armBL: 0.50, armBR: 0.50,
+              sleeveL: 0.65, sleeveR: 0.65, sleeveLL: 0.70, sleeveLR: 0.70,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: 2.0, bodyAngleZ: 0.0, posZ: 0.50,
+              headAngleX: 0.0, headAngleY: 4.0, headAngleZ: 0.0, posY: 10.0
+            },
+            emotion: 'enthusiastic', emotionIntensity: 0.95
+          },
+
+          // ── Saludo / Bienvenida ───────────────────────────────────────────
+          GREETING: {
+            duration: 3.2, attack: 0.40, release: 0.65,
+            params: {
+              shoulderR: 0.75, armR: 0.65, armBR: 0.55, sleeveR: 0.70, sleeveLR: 0.75,
+              shoulderL: 0.10, armL: 0.05, armBL: 0.0, sleeveL: 0.05, sleeveLL: 0.0,
+              chestZ: 0.35, bodyAngleX: 3.0, bodyAngleY: 1.0, bodyAngleZ: 2.0, posZ: 0.25,
+              headAngleX: 2.0, headAngleY: -2.0, headAngleZ: 3.5
+            },
+            emotion: 'happy', emotionIntensity: 0.85
+          },
+
+          // ── Despedida ─────────────────────────────────────────────────────
+          FAREWELL: {
+            duration: 3.4, attack: 0.45, release: 0.70,
+            params: {
+              shoulderR: 0.65, armR: 0.55, armBR: 0.45, sleeveR: 0.60, sleeveLR: 0.65,
+              shoulderL: -0.10, armL: -0.05, armBL: 0.0, sleeveL: 0.0, sleeveLL: 0.0,
+              chestZ: 0.25, bodyAngleX: 2.0, bodyAngleY: -1.0, bodyAngleZ: 1.5, posZ: 0.15,
+              headAngleX: 1.0, headAngleY: -3.0, headAngleZ: 2.5
+            },
+            emotion: 'happy', emotionIntensity: 0.75
+          },
+
+          // ── GESTOS NIVEL VIDEOJUEGO (Video Game Pro Motion Suite) ─────────
+          GAME_VICTORY_CELEBRATE: {
+            duration: 3.8, attack: 0.30, release: 0.70,
+            params: {
+              shoulderL: 0.85, shoulderR: 0.85,
+              armL: 0.95, armR: 0.95, armBL: 0.80, armBR: 0.80,
+              sleeveL: 0.90, sleeveR: 0.90, sleeveLL: 0.90, sleeveLR: 0.90,
+              chestZ: 0.75, bodyAngleX: 0.0, bodyAngleY: 3.0, bodyAngleZ: 0.0, posZ: 0.55,
+              headAngleX: 0.0, headAngleY: 5.0, headAngleZ: 0.0, posY: 14.0
+            },
+            emotion: 'proud', emotionIntensity: 0.95
+          },
+
+          GAME_READ_GRIMOIRE: {
+            duration: 4.5, attack: 0.45, release: 0.65,
+            params: {
+              shoulderL: 0.50, armL: 0.65, armBL: 0.55, sleeveL: 0.60, sleeveLL: 0.65,
+              shoulderR: 0.25, armR: 0.35, armBR: 0.30, sleeveR: 0.30, sleeveLR: 0.35,
+              chestZ: -0.35, bodyAngleX: 3.5, bodyAngleY: -2.5, bodyAngleZ: 2.0, posZ: 0.25,
+              headAngleX: -4.0, headAngleY: -7.0, headAngleZ: -3.0
+            },
+            emotion: 'curious', emotionIntensity: 0.85
+          },
+
+          GAME_SUMMON_HUD: {
+            duration: 4.2, attack: 0.35, release: 0.60,
+            params: {
+              shoulderR: 0.65, armR: 0.85, armBR: 0.75, sleeveR: 0.80, sleeveLR: 0.85,
+              shoulderL: -0.15, armL: -0.10, armBL: 0.0, sleeveL: 0.0, sleeveLL: 0.0,
+              chestZ: 0.45, bodyAngleX: 5.0, bodyAngleY: 2.5, bodyAngleZ: 3.0, posZ: 0.45,
+              headAngleX: 4.0, headAngleY: -2.0, headAngleZ: 4.0
+            },
+            emotion: 'enthusiastic', emotionIntensity: 0.90
+          },
+
+          GAME_PLAY_WITH_DOLL: {
+            duration: 3.6, attack: 0.40, release: 0.55,
+            params: {
+              shoulderL: 0.55, armL: 0.50, armBL: 0.40, sleeveL: 0.50, sleeveLL: 0.55,
+              shoulderR: -0.15, armR: 0.0, armBR: 0.0, sleeveR: 0.0, sleeveLR: 0.0,
+              chestZ: -0.50, bodyAngleX: -6.0, bodyAngleY: -3.0, bodyAngleZ: -5.0, posZ: 0.20,
+              headAngleX: -5.5, headAngleY: -6.0, headAngleZ: -6.5
+            },
+            emotion: 'happy', emotionIntensity: 0.90
+          },
+
+          GAME_COMBAT_READY: {
+            duration: 4.0, attack: 0.25, release: 0.60,
+            params: {
+              shoulderL: 0.45, armL: 0.55, armBL: 0.65, sleeveL: 0.55, sleeveLL: 0.60,
+              shoulderR: -0.25, armR: -0.25, armBR: 0.40, sleeveR: 0.25, sleeveLR: 0.30,
+              chestZ: 0.80, bodyAngleX: -4.0, bodyAngleY: 4.5, bodyAngleZ: -3.5, posZ: 0.60,
+              headAngleX: 2.5, headAngleY: 3.0, headAngleZ: -2.0
+            },
+            emotion: 'enthusiastic', emotionIntensity: 0.95
+          },
+
+          GAME_SURPRISED_SHOCK: {
+            duration: 2.2, attack: 0.12, release: 0.45,
+            params: {
+              shoulderL: 0.65, shoulderR: 0.65,
+              armL: 0.45, armR: 0.45, armBL: 0.50, armBR: 0.50,
+              sleeveL: 0.55, sleeveR: 0.55, sleeveLL: 0.60, sleeveLR: 0.60,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: 0.0, bodyAngleZ: 0.0, posZ: -0.65,
+              headAngleX: 0.0, headAngleY: 7.0, headAngleZ: 2.5, posY: -8.0
+            },
+            emotion: 'surprised', emotionIntensity: 1.0
+          },
+
+          GAME_POUT_PLAYFUL: {
+            duration: 3.2, attack: 0.30, release: 0.50,
+            params: {
+              shoulderL: 0.30, shoulderR: 0.30,
+              armL: 0.20, armR: 0.20, armBL: 0.35, armBR: 0.35,
+              sleeveL: 0.30, sleeveR: 0.30, sleeveLL: 0.30, sleeveLR: 0.30,
+              chestZ: -0.20, bodyAngleX: 5.0, bodyAngleY: -2.0, bodyAngleZ: -3.0, posZ: 0.10,
+              headAngleX: 7.0, headAngleY: -2.0, headAngleZ: -5.0
+            },
+            emotion: 'shy', emotionIntensity: 0.85
+          },
+
+          GAME_HEADPAT_REACTION: {
+            duration: 3.5, attack: 0.35, release: 0.65,
+            params: {
+              shoulderL: -0.20, shoulderR: -0.20,
+              armL: -0.10, armR: -0.10, armBL: 0.0, armBR: 0.0,
+              sleeveL: 0.0, sleeveR: 0.0, sleeveLL: 0.0, sleeveLR: 0.0,
+              chestZ: 0.20, bodyAngleX: 0.0, bodyAngleY: 1.0, bodyAngleZ: 2.0, posZ: 0.25,
+              headAngleX: 1.5, headAngleY: 4.5, headAngleZ: 3.5, posY: 6.0
+            },
+            emotion: 'happy', emotionIntensity: 0.95
+          },
+
+          GAME_STRETCH_RELAX: {
+            duration: 4.0, attack: 0.55, release: 0.75,
+            params: {
+              shoulderL: 0.75, shoulderR: 0.75,
+              armL: 0.85, armR: 0.85, armBL: 0.70, armBR: 0.70,
+              sleeveL: 0.80, sleeveR: 0.80, sleeveLL: 0.80, sleeveLR: 0.80,
+              chestZ: 0.65, bodyAngleX: 0.0, bodyAngleY: 4.0, bodyAngleZ: 0.0, posZ: 0.35,
+              headAngleX: 0.0, headAngleY: 6.5, headAngleZ: 0.0
+            },
+            emotion: 'relieved', emotionIntensity: 0.90
+          },
+
+          GAME_CONFUSED_SCRATCH: {
+            duration: 3.4, attack: 0.40, release: 0.55,
+            params: {
+              shoulderR: 0.70, armR: 0.78, armBR: 0.85, sleeveR: 0.75, sleeveLR: 0.80,
+              shoulderL: -0.15, armL: -0.10, armBL: 0.0, sleeveL: 0.0, sleeveLL: 0.0,
+              chestZ: -0.40, bodyAngleX: 4.0, bodyAngleY: 1.0, bodyAngleZ: -4.0, posZ: 0.15,
+              headAngleX: 3.5, headAngleY: 2.0, headAngleZ: -7.5
+            },
+            emotion: 'confused', emotionIntensity: 0.85
+          },
+
+          GAME_CURIOUS_INSPECT: {
+            duration: 3.8, attack: 0.35, release: 0.55,
+            params: {
+              shoulderL: 0.15, shoulderR: 0.15,
+              armL: 0.10, armR: 0.10, armBL: 0.05, armBR: 0.05,
+              sleeveL: 0.10, sleeveR: 0.10, sleeveLL: 0.10, sleeveLR: 0.10,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: -2.5, bodyAngleZ: 0.0, posZ: 0.28,
+              headAngleX: 2.0, headAngleY: -5.0, headAngleZ: 4.0
+            },
+            emotion: 'curious', emotionIntensity: 0.95
+          },
+
+          // ── 15 NUEVAS ANIMACIONES PROFESIONALES ───────────────────────────
+
+          // 1. Cruzar brazos — pensativa y segura de sí misma
+          ARMS_CROSSED_CONFIDENT: {
+            duration: 4.5, attack: 0.60, release: 0.80,
+            params: {
+              shoulderL: 0.40, armL: 0.55, armBL: 0.70, sleeveL: 0.55, sleeveLL: 0.60,
+              shoulderR: -0.40, armR: 0.50, armBR: 0.65, sleeveR: 0.50, sleeveLR: 0.55,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: -1.5, bodyAngleZ: 0.0, posZ: 0.10,
+              headAngleX: 0.0, headAngleY: -3.5, headAngleZ: -4.0
+            },
+            emotion: 'proud', emotionIntensity: 0.88
+          },
+
+          // 2. Mano al mentón — reflexión profunda
+          CHIN_TOUCH_THINK: {
+            duration: 4.2, attack: 0.55, release: 0.75,
+            params: {
+              shoulderR: 0.45, armR: 0.60, armBR: 0.75, sleeveR: 0.65, sleeveLR: 0.68,
+              shoulderL: 0.15, armL: 0.10, armBL: 0.05, sleeveL: 0.10, sleeveLL: 0.10,
+              chestZ: -0.25, bodyAngleX: -3.0, bodyAngleY: 2.5, bodyAngleZ: -2.0, posZ: 0.12,
+              headAngleX: -4.5, headAngleY: 4.0, headAngleZ: -5.5
+            },
+            emotion: 'curious', emotionIntensity: 0.90
+          },
+
+          // 3. Señalar al frente — directiva y decidida
+          POINT_FORWARD: {
+            duration: 3.0, attack: 0.30, release: 0.55,
+            params: {
+              shoulderR: 0.70, armR: 0.80, armBR: 0.60, sleeveR: 0.72, sleeveLR: 0.75,
+              shoulderL: -0.10, armL: -0.05, armBL: 0.0, sleeveL: 0.0, sleeveLL: 0.0,
+              chestZ: 0.50, bodyAngleX: 5.5, bodyAngleY: -1.5, bodyAngleZ: 3.5, posZ: 0.18,
+              headAngleX: 5.0, headAngleY: -2.0, headAngleZ: 4.0
+            },
+            emotion: 'enthusiastic', emotionIntensity: 0.92
+          },
+
+          // 4. Inclinar cabeza coqueta — encantadora y juguetona
+          HEAD_TILT_CUTE: {
+            duration: 3.8, attack: 0.45, release: 0.70,
+            params: {
+              shoulderL: 0.0, shoulderR: 0.0,
+              armL: 0.0, armR: 0.0, armBL: 0.0, armBR: 0.0,
+              sleeveL: 0.05, sleeveR: 0.05, sleeveLL: 0.05, sleeveLR: 0.05,
+              chestZ: 0.15, bodyAngleX: 1.5, bodyAngleY: 2.0, bodyAngleZ: 1.8, posZ: 0.05,
+              headAngleX: 2.0, headAngleY: 3.5, headAngleZ: 10.5
+            },
+            emotion: 'happy', emotionIntensity: 0.95
+          },
+
+          // 5. Reverencia elegante — respetuosa y formal
+          BOW_ELEGANT: {
+            duration: 4.0, attack: 0.50, release: 0.80,
+            params: {
+              shoulderL: -0.10, shoulderR: -0.10,
+              armL: -0.15, armR: -0.15, armBL: -0.10, armBR: -0.10,
+              sleeveL: -0.10, sleeveR: -0.10, sleeveLL: -0.08, sleeveLR: -0.08,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: -8.5, bodyAngleZ: 0.0, posZ: -0.12,
+              headAngleX: 0.0, headAngleY: -12.0, headAngleZ: 0.0
+            },
+            emotion: 'happy', emotionIntensity: 0.78
+          },
+
+          // 6. Manos en las mejillas — vergüenza dulce / kawaii
+          HANDS_ON_CHEEKS: {
+            duration: 3.5, attack: 0.40, release: 0.60,
+            params: {
+              shoulderL: 0.55, armL: 0.65, armBL: 0.72, sleeveL: 0.62, sleeveLL: 0.65,
+              shoulderR: -0.55, armR: 0.62, armBR: 0.70, sleeveR: 0.60, sleeveLR: 0.63,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: 1.8, bodyAngleZ: 0.0, posZ: 0.14,
+              headAngleX: 1.0, headAngleY: 4.0, headAngleZ: 3.5
+            },
+            emotion: 'shy', emotionIntensity: 1.0
+          },
+
+          // 7. Brazo extendido al cielo — inspiración / proclamación
+          ARM_RAISE_SKY: {
+            duration: 4.0, attack: 0.40, release: 0.70,
+            params: {
+              shoulderL: 0.90, armL: 1.0, armBL: 0.85, sleeveL: 0.92, sleeveLL: 0.95,
+              shoulderR: -0.05, armR: 0.05, armBR: 0.0, sleeveR: 0.05, sleeveLR: 0.0,
+              chestZ: -0.45, bodyAngleX: -5.0, bodyAngleY: 3.0, bodyAngleZ: -3.5, posZ: 0.22,
+              headAngleX: -6.0, headAngleY: 5.0, headAngleZ: -4.0, posY: 8.0
+            },
+            emotion: 'proud', emotionIntensity: 1.0
+          },
+
+          // 8. Descanso de brazos a los lados — calma natural / neutral relajado
+          ARMS_REST_NATURAL: {
+            duration: 5.0, attack: 0.70, release: 1.0,
+            params: {
+              shoulderL: -0.05, shoulderR: -0.05,
+              armL: -0.08, armR: -0.08, armBL: 0.05, armBR: 0.05,
+              sleeveL: 0.08, sleeveR: 0.08, sleeveLL: 0.08, sleeveLR: 0.08,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: 0.0, bodyAngleZ: 0.0, posZ: 0.0,
+              headAngleX: 0.0, headAngleY: 1.0, headAngleZ: 0.0
+            },
+            emotion: 'neutral', emotionIntensity: 0.50
+          },
+
+          // 9. Sacudir la cabeza negativa — rechazo suave
+          HEAD_SHAKE_NO: {
+            duration: 2.8, attack: 0.25, release: 0.50,
+            params: {
+              shoulderL: 0.10, shoulderR: 0.10,
+              armL: 0.05, armR: 0.05, armBL: 0.0, armBR: 0.0,
+              sleeveL: 0.05, sleeveR: 0.05, sleeveLL: 0.05, sleeveLR: 0.05,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: -1.0, bodyAngleZ: 0.0, posZ: 0.0,
+              headAngleX: 0.0, headAngleY: -1.5, headAngleZ: -8.5
+            },
+            emotion: 'sad', emotionIntensity: 0.70
+          },
+
+          // 10. Contar con los dedos — explicación didáctica
+          COUNT_FINGERS: {
+            duration: 3.8, attack: 0.40, release: 0.60,
+            params: {
+              shoulderR: 0.55, armR: 0.70, armBR: 0.55, sleeveR: 0.62, sleeveLR: 0.65,
+              shoulderL: 0.15, armL: 0.10, armBL: 0.05, sleeveL: 0.10, sleeveLL: 0.12,
+              chestZ: 0.30, bodyAngleX: 3.5, bodyAngleY: -0.5, bodyAngleZ: 2.5, posZ: 0.20,
+              headAngleX: 3.0, headAngleY: -1.0, headAngleZ: 3.0
+            },
+            emotion: 'neutral', emotionIntensity: 0.82
+          },
+
+          // 11. Pose de poder — intimidante y dramática
+          POWER_STANCE: {
+            duration: 4.5, attack: 0.35, release: 0.65,
+            params: {
+              shoulderL: 0.60, armL: 0.45, armBL: 0.30, sleeveL: 0.50, sleeveLL: 0.55,
+              shoulderR: -0.60, armR: 0.42, armBR: 0.28, sleeveR: 0.48, sleeveLR: 0.52,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: -2.5, bodyAngleZ: 0.0, posZ: 0.08,
+              headAngleX: 0.0, headAngleY: -5.0, headAngleZ: -2.0
+            },
+            emotion: 'proud', emotionIntensity: 1.0
+          },
+
+          // 12. Aplauso suave — aprobación y reconocimiento
+          CLAP_GENTLE: {
+            duration: 3.2, attack: 0.30, release: 0.55,
+            params: {
+              shoulderL: 0.35, armL: 0.50, armBL: 0.65, sleeveL: 0.48, sleeveLL: 0.52,
+              shoulderR: -0.35, armR: 0.48, armBR: 0.62, sleeveR: 0.46, sleeveLR: 0.50,
+              chestZ: 0.0, bodyAngleX: 0.0, bodyAngleY: 2.0, bodyAngleZ: 0.0, posZ: 0.18,
+              headAngleX: 0.0, headAngleY: 3.5, headAngleZ: 2.0
+            },
+            emotion: 'happy', emotionIntensity: 0.88
+          },
+
+          // 13. Mirar al costado distraída — pensativa / soñando despierta
+          LOOK_ASIDE_DREAMY: {
+            duration: 5.0, attack: 0.65, release: 0.90,
+            params: {
+              shoulderL: 0.0, shoulderR: 0.0,
+              armL: 0.0, armR: 0.0, armBL: 0.0, armBR: 0.0,
+              sleeveL: 0.05, sleeveR: 0.05, sleeveLL: 0.05, sleeveLR: 0.05,
+              chestZ: 0.20, bodyAngleX: 2.0, bodyAngleY: 1.5, bodyAngleZ: 1.5, posZ: 0.05,
+              headAngleX: 3.5, headAngleY: 8.0, headAngleZ: 5.5
+            },
+            emotion: 'happy', emotionIntensity: 0.65
+          },
+
+          // 14. Rechazo con mano — negar algo con elegancia
+          HAND_WAVE_DENY: {
+            duration: 3.0, attack: 0.28, release: 0.52,
+            params: {
+              shoulderL: 0.60, armL: 0.55, armBL: 0.45, sleeveL: 0.55, sleeveLL: 0.58,
+              shoulderR: -0.10, armR: 0.0, armBR: 0.0, sleeveR: 0.0, sleeveLR: 0.0,
+              chestZ: -0.30, bodyAngleX: -3.5, bodyAngleY: 2.0, bodyAngleZ: -3.0, posZ: 0.08,
+              headAngleX: -3.0, headAngleY: 3.5, headAngleZ: -4.5
+            },
+            emotion: 'confused', emotionIntensity: 0.80
+          },
+
+          // 15. Susurro secreto — cómplice y misteriosa
+          WHISPER_SECRET: {
+            duration: 4.8, attack: 0.60, release: 0.85,
+            params: {
+              shoulderR: 0.30, armR: 0.45, armBR: 0.60, sleeveR: 0.42, sleeveLR: 0.45,
+              shoulderL: 0.05, armL: 0.08, armBL: 0.05, sleeveL: 0.08, sleeveLL: 0.08,
+              chestZ: 0.35, bodyAngleX: 4.0, bodyAngleY: -2.0, bodyAngleZ: 2.5, posZ: 0.15,
+              headAngleX: 4.5, headAngleY: -3.5, headAngleZ: 5.0
+            },
+            emotion: 'curious', emotionIntensity: 0.88
+          }
+        };
+      }
+
+      setSemanticIntent(intent, metadata) {
+        intent = String(intent || 'neutral').toLowerCase().trim();
+        metadata = metadata || {};
+
+        let gestureKey = '';
+        switch (intent) {
+          case 'explain':
+          case 'explaining':
+            this.speechSegmentCount++;
+            if (this.speechSegmentCount % 3 === 0) {
+              gestureKey = 'EXPLAIN_BOTH';
+            } else if (this.lastArmUsed === 'left') {
+              gestureKey = 'EXPLAIN_RIGHT';
+              this.lastArmUsed = 'right';
+            } else {
+              gestureKey = 'EXPLAIN_LEFT';
+              this.lastArmUsed = 'left';
+            }
+            break;
+
+          case 'emphasize':
+          case 'emphasis':
+          case 'important':
+            gestureKey = 'EMPHASIZE';
+            break;
+
+          case 'present':
+          case 'presentation':
+          case 'options':
+            gestureKey = (metadata.side === 'right') ? 'PRESENT_RIGHT' : 'PRESENT_LEFT';
+            break;
+
+          case 'confirm':
+          case 'confirmed':
+          case 'agree':
+            gestureKey = 'CONFIRM';
+            break;
+
+          case 'think':
+          case 'search':
+          case 'searching':
+          case 'analyze':
+          case 'analyzing':
+            gestureKey = 'THINK_ANALYZE';
+            break;
+
+          case 'warn':
+          case 'warning':
+          case 'caution':
+            gestureKey = 'WARN_CAUTION';
+            break;
+
+          case 'apologize':
+          case 'sorry':
+            gestureKey = 'APOLOGIZE';
+            break;
+
+          case 'discover':
+          case 'discovery':
+            gestureKey = 'DISCOVER';
+            break;
+
+          case 'celebrate':
+          case 'victory':
+            gestureKey = 'GAME_VICTORY_CELEBRATE';
+            break;
+
+          case 'read':
+          case 'grimoire':
+          case 'study':
+            gestureKey = 'GAME_SUMMON_HUD';
+            break;
+
+          case 'hud':
+          case 'summon':
+            gestureKey = 'GAME_SUMMON_HUD';
+            break;
+
+          case 'doll':
+            gestureKey = 'GAME_VICTORY_CELEBRATE';
+            break;
+
+          case 'combat':
+          case 'battle':
+            gestureKey = 'GAME_COMBAT_READY';
+            break;
+
+          case 'shock':
+            gestureKey = 'GAME_SURPRISED_SHOCK';
+            break;
+
+          case 'pout':
+            gestureKey = 'GAME_POUT_PLAYFUL';
+            break;
+
+          case 'headpat':
+            gestureKey = 'GAME_HEADPAT_REACTION';
+            break;
+
+          case 'stretch':
+            gestureKey = 'GAME_STRETCH_RELAX';
+            break;
+
+          case 'scratch':
+            gestureKey = 'GAME_CONFUSED_SCRATCH';
+            break;
+
+          case 'inspect':
+            gestureKey = 'GAME_CURIOUS_INSPECT';
+            break;
+
+          case 'greet':
+          case 'greeting':
+          case 'hello':
+            gestureKey = 'GREETING';
+            break;
+
+          case 'farewell':
+          case 'bye':
+            gestureKey = 'FAREWELL';
+            break;
+
+          case 'idle':
+          case 'neutral':
+          default:
+            return;
+        }
+
+        if (gestureKey) {
+          const intensity = Number(metadata.intensity) || 1.0;
+          const duration = Number(metadata.duration) || 0.0;
+          this.triggerGesture(gestureKey, duration, intensity);
+        }
+      }
+
+      triggerGesture(name, duration = 0.0, intensity = 1.0) {
+        name = String(name || '').toUpperCase().trim();
+        const def = this.definitions[name];
+        if (!def) {
+          console.warn("[GestureController] Gesto no reconocido:", name);
+          return false;
+        }
+
+        this.activeGesture = def;
+        this.gestureName = name;
+        this.elapsed = 0.0;
+        this.duration = (duration > 0.0) ? duration : def.duration;
+        this.attackTime = def.attack || 0.45;
+        this.releaseTime = def.release || 0.65;
+        this.intensity = Math.max(0.2, Math.min(1.5, Number(intensity) || 1.0));
+
+        if (def.emotion && this.app && this.app.emotions) {
+          this.app.emotions.setEmotion(def.emotion, (def.emotionIntensity || 0.8) * this.intensity, this.duration);
+        }
+
+        return true;
+      }
+
+      interrupt() {
+        if (this.activeGesture) {
+          // Recuperación acelerada a neutral en 0.22 s
+          this.releaseTime = 0.22;
+          this.elapsed = Math.max(this.elapsed, this.duration - this.releaseTime);
+        }
+      }
+
+      update(dt, state, isSpeaking) {
+        if (!this.activeGesture) {
+          for (const k in this.offsets) {
+            this.offsets[k] += (0.0 - this.offsets[k]) * Math.min(1.0, dt * 5.5);
+          }
+          return;
+        }
+
+        this.elapsed += dt;
+        if (this.elapsed >= this.duration) {
+          this.activeGesture = null;
+          this.gestureName = '';
+          return;
+        }
+
+        let weight = 0.0;
+        const t = this.elapsed;
+        const dur = this.duration;
+        const att = this.attackTime;
+        const rel = this.releaseTime;
+
+        if (t < att) {
+          const p = t / att;
+          weight = p * p * (3.0 - 2.0 * p);
+        } else if (t < (dur - rel)) {
+          const sustainPhase = (t - att) * 2.2;
+          weight = 1.0 + Math.sin(sustainPhase) * 0.04;
+        } else {
+          const p = (dur - t) / rel;
+          weight = p * p * (3.0 - 2.0 * p);
+        }
+
+        weight = Math.max(0.0, Math.min(1.0, weight)) * this.intensity;
+
+        const pMap = this.activeGesture.params || {};
+        for (const k in this.offsets) {
+          const target = (pMap[k] !== undefined) ? (pMap[k] * weight) : 0.0;
+          this.offsets[k] += (target - this.offsets[k]) * Math.min(1.0, dt * 14.0);
+        }
+      }
+    }
+
+    // 6. APLICACIÓN PRINCIPAL EDITH LIVE2D PRO (EdithLive2DApp)
+    // ══════════════════════════════════════════════════════════════════════════
+    class EdithLive2DApp {
+      constructor() {
+        this.container = document.getElementById('canvas-container');
+        this.loadingOverlay = document.getElementById('loading-overlay');
+        this.loadingText = document.getElementById('loading-text');
+        this.debugHud = document.getElementById('debug-hud');
+        this.canvas = document.getElementById('canvas');
+
+        this.app = null;
+        this.model = null;
+        this.core = null;
+        this.isLoaded = false;
+        this.isRunning = true;
+        this.showDebug = false;
+
+        // Assistant State
+        this.state = 'IDLE'; // IDLE, LISTENING, THINKING, SPEAKING, SLEEPING, MUTED
+        this.speaking = false;
+        this.amplitude = 0.0;
+        this.smoothedAmp = 0.0;
+
+        // Subsystems
+        this.emotions = new EdithEmotionEngine();
+        this.gaze = new EdithGazeController();
+        this.spontaneous = new EdithSpontaneousEngine(this);
+        this.floater = new HolographicFloatController();
+        this.gestures = new GestureController(this);
+        this.gameMotion = new EdithGameMotionEngine(this);
+
+        // Natural Human Blinking System
+        this.blinkTimer = 0.0;
+        this.nextBlink = 3.2;
+        this.isBlinking = false;
+        this.blinkProgress = 0.0;
+        this.isDoubleBlink = false;
+        this.doubleBlinkPending = false;
+
+        // Respiration
+        this.breathePhase = 0.0;
+
+        // Lip-Sync Formants
+        this.formantTimer = 0.0;
+        this.currentFormant = 0.25;
+        this.mouthTarget = 0.0;
+        this.mouthCurrent = 0.0;
+
+        // Base Scale & Position cache
+        this.baseScale = 1.0;
+        this.baseX = 0.0;
+        this.baseY = 0.0;
+        this.presentationMode = false;
+        this.currentPresentationOffset = 0.0;
+        this.targetPresentationOffset = 0.0;
+
+        this.fpsCounter = 0;
+        this.fpsTimer = 0;
+        this.currentFps = 60;
+
+        this.init();
+      }
+
+      init() {
+        const w = window.innerWidth || 700;
+        const h = window.innerHeight || 800;
+
+        try {
+          if (typeof PIXI !== 'undefined' && PIXI.settings) {
+            PIXI.settings.PREFER_ENV = PIXI.ENV.WEBGL2 || PIXI.ENV.WEBGL;
+            PIXI.settings.ROUND_PIXELS = true;
+          }
+        } catch (e) {}
+
+        const opts = {
+          view: this.canvas,
+          transparent: true,
+          autoDensity: true,
+          antialias: true,
+          preserveDrawingBuffer: false, // Optimización Pro: elimina copias de framebuffer duplicadas en RAM/VRAM
+          resolution: Math.min(window.devicePixelRatio || 1, 1.25), // Optimización Pro: ultra nitidez sin sobrecargar GPU en 4K/HiDPI
+          width: w,
+          height: h,
+          backgroundAlpha: 0,
+          powerPreference: "high-performance" // Optimización Pro: aceleración gráfica dedicada de baja latencia
+        };
+
+        try {
+          this.app = new PIXI.Application(opts);
+        } catch (e) {
+          console.warn("Pixi primary init fallback, retrying with minimal context:", e);
+          try {
+            this.app = new PIXI.Application({
+              view: this.canvas,
+              transparent: true,
+              width: w,
+              height: h,
+              backgroundAlpha: 0
+            });
+          } catch (e2) {
+            console.error("Pixi fatal init failure:", e2);
+          }
+        }
+
+        // Robust WebGL context recovery on graphics driver suspend / wake
+        this.canvas.addEventListener('webglcontextlost', (e) => {
+          e.preventDefault();
+          console.warn("[Live2D Pro] WebGL Context lost. Pausing rendering pipeline...");
+          this.pauseRendering();
+        }, false);
+
+        this.canvas.addEventListener('webglcontextrestored', () => {
+          console.log("[Live2D Pro] WebGL Context restored. Rebuilding shaders and resuming...");
+          if (this.currentModelUrl) {
+            this.loadModel(this.currentModelUrl);
+          }
+          this.resumeRendering();
+        }, false);
+
+        // Window resize
+        window.addEventListener('resize', () => this.onResize());
+
+        // Dynamic resource suspension: pause WebGL when tab/window is hidden or minimized
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            this.pauseRendering();
+          } else {
+            this.resumeRendering();
+          }
+        });
+
+        // Mouse tracking for contextual gaze
+        window.addEventListener('mousemove', (e) => {
+          const nx = (e.clientX / window.innerWidth) * 2 - 1;
+          const ny = -(e.clientY / window.innerHeight) * 2 + 1;
+          this.gaze.onMouseMove(Math.max(-1.0, Math.min(1.0, nx)), Math.max(-1.0, Math.min(1.0, ny)));
+        });
+
+        window.addEventListener('mouseleave', () => {
+          this.gaze.onMouseLeave();
+        });
+
+        // Interactive tactile pointer click and double-click hit-testing
+        this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+        this.canvas.addEventListener('dblclick', (e) => this.onDoubleClick(e));
+
+        // Initialize Magical Firefly companion system & connect to Gaze Controller
+        this.firefly = new EdithFireflySystem('firefly-canvas');
+        this.gaze.firefly = this.firefly;
+
+        // Load initial Model (from URL query parameter if present, otherwise default to Edith)
+        const params = new URLSearchParams(window.location.search);
+        const initialModel = params.get('model') || '../../edith/edith.model3.json';
+        this.loadModel(initialModel);
+      }
+
+      loadModel(url) {
+        if (!url) return;
+        this.currentModelUrl = url;
+
+        // Clean up previous model if switching
+        if (this.model) {
+          try {
+            this.app.stage.removeChild(this.model);
+            this.model.destroy({ children: true });
+          } catch(e) {
+            console.warn("Error cleaning up previous Live2D model:", e);
+          }
+          this.model = null;
+          this.core = null;
+          this.isLoaded = false;
+        }
+
+        // Check if loading custom Edith AI Mesh Model (*.edith2d.json or *.r2d.json)
+        if (url.endsWith('.edith2d.json') || url.endsWith('.r2d.json')) {
+          this.loadEdith2DMeshModel(url);
+          return;
+        }
+
+        if (this.loadingOverlay) {
+          this.loadingOverlay.style.display = 'flex';
+          this.loadingOverlay.style.opacity = '1';
+          if (this.loadingText) {
+            this.loadingText.innerText = "Preparando presencia…";
+            this.loadingText.style.color = "#A0A0AB";
+          }
+        }
+
+        PIXI.live2d.Live2DModel.from(url, { autoInteract: false, autoUpdate: false })
+          .then(model => {
+            this.model = model;
+            this.core = model.internalModel ? model.internalModel.coreModel : null;
+            this._buildParameterIndexCache();
+
+            this.app.stage.addChild(model);
+
+            if (model.internalModel) {
+              model.internalModel.eyeBlink = undefined; // Controlled by our human physics
+            }
+
+            this.fitModel();
+            this.isLoaded = true;
+            this.hideLoading();
+
+            if (!this._tickerAdded) {
+              this.app.ticker.add((delta) => this.onTick(delta));
+              this._tickerAdded = true;
+            }
+            console.log("Live2D Model Initialized Successfully:", url);
+          })
+          .catch(err => {
+            console.error("Error cargando Live2D:", err);
+            if (url.includes('edith.model3.json')) {
+              console.log("Reintentando con edith_hq.model3.json...");
+              this.loadModel('../../edith/edith_hq.model3.json');
+            } else {
+              this.onError("Error cargando modelo Live2D: " + url);
+            }
+          });
+      }
+
+      loadEdith2DMeshModel(url) {
+        if (this.loadingOverlay) {
+          this.loadingOverlay.style.display = 'flex';
+          this.loadingOverlay.style.opacity = '1';
+          if (this.loadingText) {
+            this.loadingText.innerText = "CARGANDO MODELO 2D AI DE EDITH...";
+            this.loadingText.style.color = "#38bdf8";
+          }
+        }
+
+        const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
+        fetch(url)
+          .then(res => res.json())
+          .then(rigData => {
+            const container = new PIXI.Container();
+            container.canvasWidth = rigData.canvas_width || 500;
+            container.canvasHeight = rigData.canvas_height || 500;
+
+            const partsList = Object.values(rigData.parts || {}).sort((a, b) => (a.draw_order || 0) - (b.draw_order || 0));
+            const activeMeshes = [];
+
+            partsList.forEach(part => {
+              if (!part.mesh || !part.mesh.vertices || part.mesh.vertices.length === 0) return;
+              const texUrl = baseUrl + part.texture_path;
+              const tex = PIXI.Texture.from(texUrl);
+
+              const flatVerts = new Float32Array(part.mesh.vertices.flat());
+              const flatUvs = new Float32Array(part.mesh.uvs.flat());
+              const flatIndices = new Uint16Array(part.mesh.triangles.flat());
+
+              const mesh = new PIXI.SimpleMesh(tex, flatVerts, flatUvs, flatIndices, PIXI.DRAW_MODES.TRIANGLES);
+              mesh.origVerts = new Float32Array(flatVerts);
+              mesh.partData = part;
+              mesh.alpha = part.opacity !== undefined ? part.opacity : 1.0;
+              mesh.visible = part.visible !== false;
+
+              if (tex.baseTexture && !tex.baseTexture.valid) {
+                tex.baseTexture.once('loaded', () => {
+                  if (this.model === container) this.fitModel();
+                });
+              }
+
+              container.addChild(mesh);
+              activeMeshes.push(mesh);
+            });
+
+            const adapter = {
+              parameters: {},
+              dirty: true,
+              setParameterValueById: (id, val) => {
+                if (adapter.parameters[id] !== val) {
+                  adapter.parameters[id] = val;
+                  adapter.dirty = true;
+                }
+              }
+            };
+
+            // Container update method called on every frame by onTick
+            container.update = (delta) => {
+              if (!adapter.dirty) return;
+              const params = adapter.parameters;
+
+              // 2.5D Parallax & Head tracking
+              const angX = (params['ParamAngleX'] || 0) / 30.0;
+              const angY = (params['ParamAngleY'] || 0) / 30.0;
+              const eyeBallX = (params['ParamEyeBallX'] || 0);
+              const eyeBallY = (params['ParamEyeBallY'] || 0);
+
+              activeMeshes.forEach(m => {
+                const pData = m.partData;
+                const pId = pData.id || '';
+                const verts = m.geometry.getBuffer('aVertexPosition').data;
+                const orig = m.origVerts;
+                const count = orig.length / 2;
+
+                let shiftX = 0;
+                let shiftY = 0;
+                if (pId === 'part_head_base' || pId === 'part_hair_front' || pId === 'part_hair_back') {
+                  shiftX = angX * 16.0;
+                  shiftY = angY * 12.0;
+                } else if (pId === 'part_eye_left' || pId === 'part_eye_right') {
+                  shiftX = angX * 18.0 + eyeBallX * 5.0;
+                  shiftY = angY * 14.0 - eyeBallY * 4.0;
+                } else if (pId === 'part_mouth') {
+                  shiftX = angX * 17.0;
+                  shiftY = angY * 13.0;
+                } else if (pId === 'part_neck') {
+                  shiftX = angX * 6.0;
+                  shiftY = angY * 4.0;
+                }
+
+                for (let i = 0; i < count; i++) {
+                  verts[i * 2] = orig[i * 2] + shiftX;
+                  verts[i * 2 + 1] = orig[i * 2 + 1] + shiftY;
+                }
+
+                if (pData.keyforms && pData.keyforms.length > 0) {
+                  pData.keyforms.forEach(kf => {
+                    const val = params[kf.param_id];
+                    if (val === undefined || !kf.vertex_offsets) return;
+
+                    let factor = 0;
+                    if (kf.param_id && kf.param_id.includes('Eye') && kf.param_id.includes('Open')) {
+                      factor = Math.max(0.0, Math.min(1.0, 1.0 - val));
+                    } else if (kf.param_value !== 0) {
+                      factor = Math.max(0.0, Math.min(1.0, val / kf.param_value));
+                    } else {
+                      factor = Math.max(0.0, Math.min(1.0, Math.abs(val)));
+                    }
+
+                    if (factor > 0.001) {
+                      const offsets = kf.vertex_offsets;
+                      const n = Math.min(count, offsets.length);
+                      for (let i = 0; i < n; i++) {
+                        verts[i * 2] += offsets[i][0] * factor;
+                        verts[i * 2 + 1] += offsets[i][1] * factor;
+                      }
+                    }
+                  });
+                }
+
+                m.geometry.getBuffer('aVertexPosition').update();
+              });
+              adapter.dirty = false;
+            };
+
+            this.model = container;
+            this.core = adapter;
+            this.app.stage.addChild(container);
+
+            this.fitModel();
+            this.isLoaded = true;
+            this.hideLoading();
+
+            if (!this._tickerAdded) {
+              this.app.ticker.add((delta) => this.onTick(delta));
+              this._tickerAdded = true;
+            }
+            console.log("Edith 2D AI Mesh Model Initialized Successfully:", url);
+          })
+          .catch(err => {
+            console.error("Error cargando Edith 2D Mesh Model:", err);
+            this.onError("Error cargando Edith 2D Mesh Model: " + url);
+          });
+      }
+
+      _buildParameterIndexCache() {
+        this.paramMap = new Map();
+        if (!this.core) return;
+        try {
+          const ids = this.core._parameterIds || (this.core.parameters ? this.core.parameters.ids : null);
+          if (ids && ids.length) {
+            for (let i = 0; i < ids.length; i++) {
+              this.paramMap.set(ids[i], i);
+            }
+          }
+        } catch (e) {
+          console.warn("[Live2D Pro] Error construyendo mapa de parámetros:", e);
+        }
+      }
+
+      setParam(paramId, val) {
+        if (!this.core) return;
+        const values = this.core._parameterValues || (this.core.parameters ? this.core.parameters.values : null);
+        if (values && this.paramMap) {
+          const idx = this.paramMap.get(paramId);
+          if (idx !== undefined) {
+            values[idx] = val;
+            return;
+          }
+        }
+        if (typeof this.core.setParameterValueById === 'function') {
+          this.core.setParameterValueById(paramId, val);
+        }
+      }
+
+      setCoreParam(paramId, val, aliases = []) {
+        if (!this.core) return;
+        const values = this.core._parameterValues || (this.core.parameters ? this.core.parameters.values : null);
+        if (values && this.paramMap) {
+          const idx = this.paramMap.get(paramId);
+          if (idx !== undefined) {
+            values[idx] = val;
+          }
+          for (let i = 0; i < aliases.length; i++) {
+            const aIdx = this.paramMap.get(aliases[i]);
+            if (aIdx !== undefined) {
+              values[aIdx] = val;
+            }
+          }
+          return;
+        }
+        if (typeof this.core.setParameterValueById === 'function') {
+          this.core.setParameterValueById(paramId, val);
+          for (let i = 0; i < aliases.length; i++) {
+            this.core.setParameterValueById(aliases[i], val);
+          }
+        }
+      }
+
+      fitModel() {
+        if (!this.model) return;
+        const w = window.innerWidth || 700;
+        const h = window.innerHeight || 800;
+        this.app.renderer.resize(w, h);
+
+        let mw = 3893;
+        let mh = 9000;
+        if (this.model.canvasWidth && this.model.canvasHeight) {
+          mw = this.model.canvasWidth;
+          mh = this.model.canvasHeight;
+        } else if (this.model.internalModel && this.model.internalModel.width && this.model.internalModel.height) {
+          mw = this.model.internalModel.width;
+          mh = this.model.internalModel.height;
+        } else if (this.model.width && this.model.height) {
+          const sx = (this.model.scale && this.model.scale.x) ? this.model.scale.x : 1;
+          const sy = (this.model.scale && this.model.scale.y) ? this.model.scale.y : 1;
+          mw = this.model.width / sx;
+          mh = this.model.height / sy;
+        }
+
+        this.modelRawW = mw;
+        this.modelRawH = mh;
+
+        // Dynamic framing: cuerpo completo visible siempre, sin recorte
+        const aspectModel = mh / (mw || 1);
+        if (aspectModel > 1.2) {
+          // Personaje alto (HuoHuo, cuerpo completo): escalar al 85% de la altura y anclar en la base
+          // Esto garantiza un generoso espacio aéreo superior (~80-110px) para que el halo y las orejas respiren libremente
+          this.baseScale = (h * 0.85) / mh;
+          this.baseX = (w - mw * this.baseScale) / 2;
+          this.baseY = Math.max(65, (h - mh * this.baseScale) * 0.88);
+        } else {
+          this.baseScale = Math.min(w / (mw * 0.90), (h * 0.85) / mh);
+          this.baseX = (w - mw * this.baseScale) / 2;
+          this.baseY = Math.max(55, (h - mh * this.baseScale) * 0.82);
+        }
+
+        this.model.scale.set(this.baseScale);
+        this.model.x = this.baseX;
+        this.model.y = this.baseY;
+      }
+
+      onResize() {
+        this.fitModel();
+      }
+
+      hideLoading() {
+        if (this.loadingOverlay) {
+          this.loadingOverlay.style.opacity = '0';
+          setTimeout(() => {
+            this.loadingOverlay.style.display = 'none';
+          }, 400);
+        }
+      }
+
+      onError(msg) {
+        if (this.loadingText) {
+          this.loadingText.innerText = msg;
+          this.loadingText.style.color = '#ff4466';
+        }
+      }
+
+      // ── API EXTERNA (Invocada desde Python via WebEngine) ──────────────────
+      setSpeaking(isSpeaking) {
+        this.speaking = Boolean(isSpeaking);
+      }
+
+      setAmplitude(amp) {
+        this.amplitude = Math.max(0.0, Math.min(1.0, amp));
+      }
+
+      setState(newState) {
+        const prev = this.state;
+        this.state = String(newState || 'IDLE').toUpperCase();
+
+        if (this.state === 'SLEEPING') {
+          this.emotions.setEmotion('sleepy', 1.0, 0.0);
+          this.spontaneous.interruptAction();
+        } else if (prev === 'SLEEPING' && this.state !== 'SLEEPING') {
+          this.emotions.setEmotion('happy', 0.8, 2.5);
+        } else if (this.state === 'THINKING') {
+          this.emotions.setEmotion('curious', 0.8, 0.0);
+        } else if (this.state === 'LISTENING') {
+          this.emotions.setEmotion('neutral', 1.0, 0.0);
+        }
+      }
+
+      glance(dx, dy, hold = 1.5) {
+        this.gaze.glance(dx, dy, hold);
+      }
+
+      setEmotion(name, intensity = 1.0, duration = 0.0) {
+        this.emotions.setEmotion(name, intensity, duration);
+      }
+
+      triggerAction(name) {
+        return this.spontaneous.triggerAction(name, true);
+      }
+
+      setAutonomyEnabled(enabled) {
+        const val = Boolean(enabled);
+        this.gaze.autonomyEnabled = val;
+        this.spontaneous.autonomyEnabled = val;
+      }
+
+      setSpontaneityLevel(level) {
+        const lvl = Math.max(0.0, Math.min(2.0, Number(level) || 1.0));
+        this.gaze.spontaneityLevel = lvl;
+        this.spontaneous.spontaneityLevel = lvl;
+      }
+
+      setMood(moodName) {
+        this.spontaneous.mood = String(moodName || 'cheerful').toLowerCase();
+      }
+
+      setSemanticIntent(intent, metadata) {
+        if (this.gestures) {
+          this.gestures.setSemanticIntent(intent, metadata);
+        }
+      }
+
+      playNativeMotion(name) {
+        if (!this.model) return false;
+        // Pillow/book/grimoire motions are banned: redirect to a neutral motion.
+        if (name === 'zhentou' || name === 'doll_poke') name = 'haoqi';
+        try {
+          if (typeof this.model.motion === 'function') {
+            const res = this.model.motion(name);
+            if (res !== false && res !== undefined) return true;
+          }
+        } catch (e) {}
+        try {
+          if (this.model.internalModel && this.model.internalModel.motionManager) {
+            const mm = this.model.internalModel.motionManager;
+            if (typeof mm.startMotion === 'function') {
+              mm.startMotion(name, 0);
+              return true;
+            }
+          }
+        } catch (e) {}
+        return false;
+      }
+
+      setExpression(name) {
+        if (!this.model) return false;
+        try {
+          if (typeof this.model.expression === 'function') {
+            this.model.expression(name);
+            return true;
+          }
+        } catch (e) {}
+        try {
+          if (this.model.internalModel && this.model.internalModel.motionManager && this.model.internalModel.motionManager.expressionManager) {
+            this.model.internalModel.motionManager.expressionManager.setExpression(name);
+            return true;
+          }
+        } catch (e) {}
+        return false;
+      }
+
+      triggerGesture(name, duration = 0.0, intensity = 1.0) {
+        if (!name) return false;
+        // Normalizar alias comunes
+        if (name === 'GREETING') name = 'GREETING_WAVE';
+
+        // 1. Intentar reproducir motion nativo registrado de Cubism (e.g. HuoHuo)
+        if (this.playNativeMotion(name)) {
+          return true;
+        }
+
+        // 2. Fallback a biblioteca procedimental de gestos
+        if (this.gestures) {
+          return this.gestures.triggerGesture(name, duration, intensity);
+        }
+        return false;
+      }
+
+      interruptGestures() {
+        if (this.gestures) this.gestures.interrupt();
+        if (this.spontaneous) this.spontaneous.interruptAction();
+      }
+
+      setFloatMode(mode) {
+        if (this.floater) this.floater.setMode(mode);
+      }
+
+      setFloatParams(speed, amp) {
+        if (this.floater) {
+          if (speed !== undefined) this.floater.speed = Number(speed) || 1.0;
+          if (amp !== undefined) this.floater.amplitudeMultiplier = Number(amp) || 1.0;
+        }
+      }
+
+      setPresentationMode(active) {
+        this.presentationMode = Boolean(active);
+        const w = window.innerWidth || 700;
+        this.targetPresentationOffset = this.presentationMode ? (-Math.min(190, w * 0.22)) : 0.0;
+        if (this.presentationMode) {
+          this.gaze.glance(0.48, -0.05, 3.5);
+          this.emotions.setEmotion('curious', 0.85, 3.0);
+        }
+      }
+
+      setDebugMode(enable) {
+        this.showDebug = Boolean(enable);
+        if (this.debugHud) {
+          this.debugHud.style.display = this.showDebug ? 'block' : 'none';
+        }
+      }
+
+      getStatus() {
+        return {
+          state: this.state,
+          emotion: this.emotions.currentEmotion,
+          emotionIntensity: this.emotions.intensity,
+          mood: this.spontaneous.mood,
+          gazeMode: this.gaze.mode,
+          activeAction: this.spontaneous.activeAction,
+          activeGesture: this.gestures ? this.gestures.gestureName : '',
+          floatElevation: this.floater ? (this.floater.floatY).toFixed(1) : 0,
+          autonomyEnabled: this.spontaneous.autonomyEnabled,
+          spontaneityLevel: this.spontaneous.spontaneityLevel,
+          speaking: this.speaking,
+          amplitude: this.amplitude,
+          fps: this.currentFps,
+          gameMode: this.gameMotion ? this.gameMotion.gameMode : 'idle',
+          grimoireActive: this.gameMotion ? this.gameMotion.props.grimoire.active : false,
+          ringsActive: this.gameMotion ? this.gameMotion.props.hologramRings.active : false,
+          flameActive: this.gameMotion ? this.gameMotion.props.flameAura.active : false
+        };
+      }
+
+      // ── INTERACCIÓN TÁCTIL Y HIT-TESTING (Gaming Interactivity) ────────────
+      onPointerDown(e) {
+        if (!this.model || !this.isLoaded) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+
+        // Visual cybernetic ripple feedback
+        if (this.firefly) {
+          this.firefly.spawnRipple(px, py, 'rgba(80, 220, 255, ALPHA)', 55, 95);
+        }
+
+        // Calculate model-relative coordinates
+        let mw = 3893;
+        let mh = 9000;
+        if (this.model.canvasWidth && this.model.canvasHeight) {
+          mw = this.model.canvasWidth;
+          mh = this.model.canvasHeight;
+        } else if (this.model.internalModel && this.model.internalModel.width && this.model.internalModel.height) {
+          mw = this.model.internalModel.width;
+          mh = this.model.internalModel.height;
+        }
+        const modelW = mw * this.baseScale;
+        const modelH = mh * this.baseScale;
+
+        // relX: 0 = center of model, -0.5 = left edge, +0.5 = right edge
+        const relX = (px - this.model.x) / (modelW || 1) - 0.5;
+        // relY: 0 = top of model, 1.0 = bottom of model
+        const relY = (py - this.model.y) / (modelH || 1);
+
+        // 1. Head / Hair -> Headpat reaction
+        if (relY >= 0.02 && relY <= 0.22 && Math.abs(relX) <= 0.24) {
+          this.interact('headpat');
+          return;
+        }
+
+        // 2. Cheeks / Face -> Playful poke / Pout
+        if (relY > 0.22 && relY <= 0.33 && Math.abs(relX) <= 0.20) {
+          this.interact('cheek_poke');
+          return;
+        }
+
+        // 3. Left Companion Doll -> Doll spin & bounce
+        if (relX < -0.10 && relX > -0.50 && relY >= 0.15 && relY <= 0.55) {
+          this.interact('doll_poke');
+          return;
+        }
+
+        // 4. Right Grimoire / HUD sector -> Summon HUD or Read Grimoire
+        if (relX > 0.10 && relX < 0.50 && relY >= 0.15 && relY <= 0.55) {
+          this.interact('hud_tap');
+          return;
+        }
+
+        // 5. Body / Torso -> Curious glance
+        if (relY > 0.33 && relY <= 0.65 && Math.abs(relX) <= 0.26) {
+          this.interact('body_tap');
+          return;
+        }
+      }
+
+      onDoubleClick(e) {
+        if (!this.model || !this.isLoaded) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+
+        if (this.firefly) {
+          this.firefly.spawnRipple(px, py, 'rgba(255, 180, 50, ALPHA)', 85, 120);
+        }
+
+        // Double click toggles combat ready or victory celebration
+        if (this.gameMotion && this.gameMotion.gameMode === 'combat') {
+          this.interact('celebrate');
+        } else {
+          this.interact('combat');
+        }
+      }
+
+      interact(type) {
+        type = String(type || 'headpat').toLowerCase();
+
+        switch (type) {
+          case 'headpat':
+            this.playNativeMotion('headpat') || this.playNativeMotion('Scene1');
+            this.setExpression('baozhen');
+            this.triggerGesture('GAME_HEADPAT_REACTION', 3.6, 1.0);
+            this.emotions.setEmotion('happy', 0.95, 3.5);
+            break;
+
+          case 'cheek_poke':
+            this.playNativeMotion('yaotou') || this.playNativeMotion('cheek_poke');
+            this.setExpression('angry');
+            this.triggerGesture('GAME_POUT_PLAYFUL', 3.2, 1.0);
+            this.emotions.setEmotion('shy', 0.85, 3.0);
+            break;
+
+          case 'doll_poke':
+            this.playNativeMotion('haoqi');
+            if (this.gameMotion) this.gameMotion.triggerDollInteraction();
+            this.triggerGesture('GAME_VICTORY_CELEBRATE', 3.4, 1.0);
+            this.emotions.setEmotion('happy', 0.9, 3.2);
+            break;
+
+          case 'hud_tap':
+          case 'grimoire_tap':
+            this.playNativeMotion('haoqi');
+            if (this.gameMotion) {
+              const ringsOn = !this.gameMotion.props.hologramRings.active;
+              this.gameMotion.setPropState('hologramRings', ringsOn, 5.0);
+              
+              if (ringsOn) {
+                this.triggerGesture('GAME_SUMMON_HUD', 4.5, 1.0);
+                this.emotions.setEmotion('curious', 0.9, 4.0);
+              }
+            }
+            break;
+
+          case 'combat':
+            this.playNativeMotion('qizi') || this.playNativeMotion('combat');
+            if (this.gameMotion) this.gameMotion.setGameMode('combat');
+            this.triggerGesture('GAME_COMBAT_READY', 4.0, 1.0);
+            this.emotions.setEmotion('enthusiastic', 1.0, 4.0);
+            break;
+
+          case 'celebrate':
+          case 'victory':
+            this.playNativeMotion('Scene1') || this.playNativeMotion('celebrate');
+            this.setExpression('baozhen');
+            if (this.gameMotion) this.gameMotion.setGameMode('celebrate');
+            this.triggerGesture('GAME_VICTORY_CELEBRATE', 3.8, 1.0);
+            this.emotions.setEmotion('proud', 1.0, 3.8);
+            break;
+
+          case 'shock':
+            this.playNativeMotion('linghun') || this.playNativeMotion('shock');
+            this.setExpression('white_eyes');
+            if (this.gameMotion) this.gameMotion.triggerShock();
+            this.triggerGesture('GAME_SURPRISED_SHOCK', 2.2, 1.0);
+            this.emotions.setEmotion('surprised', 1.0, 2.2);
+            break;
+
+          case 'stretch':
+            this.playNativeMotion('keshui') || this.playNativeMotion('stretch');
+            this.triggerGesture('GAME_STRETCH_RELAX', 4.0, 1.0);
+            this.emotions.setEmotion('relieved', 0.9, 4.0);
+            break;
+
+          case 'scratch':
+            this.playNativeMotion('haoqi') || this.playNativeMotion('scratch');
+            this.triggerGesture('GAME_CONFUSED_SCRATCH', 3.4, 1.0);
+            this.emotions.setEmotion('confused', 0.85, 3.4);
+            break;
+
+          case 'inspect':
+            this.playNativeMotion('haoqi') || this.playNativeMotion('inspect');
+            this.triggerGesture('GAME_CURIOUS_INSPECT', 3.8, 1.0);
+            this.emotions.setEmotion('curious', 0.95, 3.8);
+            break;
+
+          case 'greeting':
+          case 'greeting_wave':
+            this.playNativeMotion('haoqi') || this.playNativeMotion('GREETING_WAVE');
+            this.triggerGesture('GREETING_WAVE', 3.4, 1.0);
+            this.emotions.setEmotion('happy', 0.90, 3.0);
+            break;
+
+          case 'body_tap':
+          default:
+            this.playNativeMotion('haoqi');
+            this.gaze.glance((Math.random() - 0.5) * 0.4, 0.2, 2.0);
+            this.emotions.setEmotion('curious', 0.7, 2.0);
+            break;
+        }
+      }
+
+      setPropState(name, active, duration = 0) {
+        if (this.gameMotion) {
+          this.gameMotion.setPropState(name, active, duration);
+        }
+      }
+
+      setGameMode(mode) {
+        mode = String(mode || 'idle').toLowerCase();
+        if (this.gameMotion) {
+          this.gameMotion.setGameMode(mode);
+        }
+        if (mode === 'combat') {
+          this.playNativeMotion('qizi') || this.playNativeMotion('combat');
+          this.triggerGesture('GAME_COMBAT_READY', 4.0, 1.0);
+          this.emotions.setEmotion('enthusiastic', 0.95, 4.0);
+        } else if (mode === 'celebrate') {
+          this.playNativeMotion('Scene1') || this.playNativeMotion('celebrate');
+          this.setExpression('baozhen');
+          this.triggerGesture('GAME_VICTORY_CELEBRATE', 3.8, 1.0);
+          this.emotions.setEmotion('proud', 1.0, 3.8);
+        } else if (mode === 'study') {
+          this.playNativeMotion('haoqi') || this.playNativeMotion('curious');
+          this.triggerGesture('GAME_SUMMON_HUD', 4.5, 1.0);
+          this.emotions.setEmotion('curious', 0.95, 4.0);
+        } else {
+          this.playNativeMotion('Idle') || this.playNativeMotion('Scene1');
+        }
+      }
+
+      triggerGameGesture(name, duration = 0.0, intensity = 1.0) {
+        return this.triggerGesture(name, duration, intensity);
+      }
+
+      pauseRendering() {
+        if (this.isRunning) {
+          this.isRunning = false;
+          if (this.app) this.app.stop();
+        }
+      }
+
+      resumeRendering() {
+        if (!this.isRunning) {
+          this.isRunning = true;
+          if (this.app) this.app.start();
+        }
+      }
+
+      // ── BUCLE PRINCIPAL DE ANIMACIÓN (60 FPS PRO OPTIMIZED) ───────────────
+      onTick(delta) {
+        if (!this.isRunning || !this.isLoaded || !this.core) return;
+
+        const dt = delta / 60.0;
+        const now = Date.now() * 0.001;
+        const isSleep = (this.state === 'SLEEPING');
+
+        // CPU/GPU Eco-Throttle Adaptativo Avanzado:
+        // 1) En modo reposo (Sleep): 20 FPS (omite 2 de cada 3 frames, reduce 66% de recursos)
+        if (isSleep) {
+          this._sleepSkip = (this._sleepSkip || 0) + 1;
+          if (this._sleepSkip % 3 !== 0) return;
+        } else {
+          // 2) Modo Calma Estática: cuando no habla, no hay gestos ni movimiento de mouse por >2.5s,
+          // regula suavemente a 30 FPS para evitar consumo innecesario de GPU/VRAM en reposo.
+          const isAtCalm = !this.speaking && this.smoothedAmp < 0.025 && (!this.gestures || !this.gestures.isActive) && (!this.spontaneous || !this.spontaneous.activeAction);
+          if (isAtCalm && (this.state === 'IDLE' || this.state === 'OFFLINE')) {
+            this._idleCalmTimer = (this._idleCalmTimer || 0) + dt;
+            if (this._idleCalmTimer > 2.5) {
+              this._idleSkip = (this._idleSkip || 0) + 1;
+              if (this._idleSkip % 2 !== 0) return;
+            }
+          } else {
+            this._idleCalmTimer = 0.0;
+            this._idleSkip = 0;
+          }
+        }
+
+        // Medidor de FPS
+        this.fpsCounter++;
+        this.fpsTimer += dt;
+        if (this.fpsTimer >= 1.0) {
+          this.currentFps = Math.round(this.fpsCounter / this.fpsTimer);
+          this.fpsCounter = 0;
+          this.fpsTimer = 0;
+          if (this.showDebug && this.debugHud) {
+            this.updateDebugHud();
+          }
+        }
+
+        // 1. Actualizar Motor de Física de Live2D o Rig 2D (cabello, lazos, deformaciones)
+        if (this.model && typeof this.model.update === 'function') {
+          try {
+            this.model.update(delta);
+          } catch (e) {
+            console.warn("Model update notice:", e);
+          }
+        }
+
+        // 2. Actualizar Submódulos Autónomos
+        if (this.firefly) {
+          try {
+            this.firefly.update(dt, this.state);
+          } catch (e) {
+            console.warn("Firefly update error:", e);
+          }
+        }
+        this.emotions.update(dt);
+        this.gaze.update(dt, this.state, isSleep);
+        this.spontaneous.update(dt, this.state, isSleep);
+        this.floater.update(dt, this.state, this.speaking);
+        this.gestures.update(dt, this.state, this.speaking);
+        if (this.gameMotion) {
+          this.gameMotion.update(dt, this.state, this.speaking);
+        }
+
+        const emo = this.emotions.current;
+        const act = this.spontaneous.offsets;
+        const flt = this.floater;
+        const gst = this.gestures.offsets;
+
+        // 3. Sincronización Labial y Fonemas (Lip-Sync)
+        this.smoothedAmp += (this.amplitude - this.smoothedAmp) * Math.min(1.0, dt * 18.0);
+        const isSpeaking = this.speaking && !isSleep && this.smoothedAmp > 0.035;
+
+        if (isSpeaking) {
+          this.formantTimer += dt;
+          if (this.formantTimer > 0.11) {
+            this.formantTimer = 0;
+            const forms = [0.15, 0.50, 0.85, 0.30, -0.10, 0.65];
+            this.currentFormant = forms[Math.floor(Math.random() * forms.length)];
+          }
+          this.mouthTarget = Math.min(1.7, this.smoothedAmp * 1.95);
+        } else {
+          this.mouthTarget = 0.0;
+          this.currentFormant = isSleep ? 0.10 : emo.mouthForm;
+        }
+
+        this.mouthCurrent += (this.mouthTarget - this.mouthCurrent) * Math.min(1.0, dt * 22.0);
+
+        // 4. Parpadeo Biológico Multi-Fase
+        let eyeOpen = 1.0;
+        if (isSleep) {
+          eyeOpen = 0.0;
+        } else {
+          this.blinkTimer += dt;
+          if (!this.isBlinking && this.blinkTimer >= this.nextBlink) {
+            this.isBlinking = true;
+            this.blinkProgress = 0.0;
+            this.isDoubleBlink = (Math.random() < 0.22);
+          }
+
+          if (this.isBlinking) {
+            this.blinkProgress += dt * 7.8;
+            if (this.blinkProgress < 0.45) {
+              eyeOpen = Math.max(0.0, 1.0 - (this.blinkProgress / 0.45));
+            } else if (this.blinkProgress < 1.0) {
+              eyeOpen = Math.min(1.0, (this.blinkProgress - 0.45) / 0.55);
+            } else {
+              if (this.isDoubleBlink && !this.doubleBlinkPending) {
+                this.doubleBlinkPending = true;
+                this.blinkProgress = 0.15;
+              } else {
+                this.isBlinking = false;
+                this.doubleBlinkPending = false;
+                this.blinkTimer = 0.0;
+                this.nextBlink = 2.4 + Math.random() * 3.6;
+                eyeOpen = 1.0;
+              }
+            }
+          }
+        }
+
+        // Apply emotional eye aperture modifiers
+        const finalEyeOpen = Math.max(0.0, Math.min(1.9, eyeOpen + emo.eyeOpenOffset + act.eyeOpenBonus));
+
+        // 5. Respiración Orgánica Multi-Armónica
+        const breatheSpeed = isSleep ? 0.95 : 1.55;
+        this.breathePhase += dt * breatheSpeed;
+        const baseBreath = (Math.sin(this.breathePhase) + 1.0) * 0.5;
+        const finalBreath = Math.max(0.0, Math.min(1.0, baseBreath + act.breathBonus));
+
+        // 6. Aplicar Parámetros Directos con Acceso Indexado O(1)
+        // Ojos y Expresión
+        this.setParam('ParamEyeLOpen', finalEyeOpen);
+        this.setParam('ParamEyeROpen', finalEyeOpen);
+        this.setParam('ParamEyeBallX', this.gaze.currentGaze.x * 0.88);
+        this.setParam('ParamEyeBallY', this.gaze.currentGaze.y * 0.82);
+
+        const isWatchingFirefly = (this.gaze.mode === 'FIREFLY' && !isSleep);
+        const fireflySmileBonus = isWatchingFirefly ? 0.22 : 0.0;
+        const smileEyeVal = Math.max(0.0, Math.min(1.0, emo.eyeSmile + act.eyeSmileBonus + fireflySmileBonus + (isSpeaking ? 0.3 : 0.0)));
+        this.setParam('ParamEyeLSmile', smileEyeVal);
+        this.setParam('ParamEyeRSmile', smileEyeVal);
+        this.setParam('ParamEyeSmile_Happy_L', Math.max(0.0, Math.min(1.0, emo.eyeHappy + act.eyeSmileBonus)));
+        this.setParam('ParamEyeSmile_Happy_R', Math.max(0.0, Math.min(1.0, emo.eyeHappy + act.eyeSmileBonus)));
+        this.setParam('ParamEyeSmile_Angry_L', emo.eyeAngry);
+        this.setParam('ParamEyeSmile_Angry_R', emo.eyeAngry);
+        this.setParam('ParamEyeCircles', emo.eyeCircles);
+
+        // Expresiones especiales
+        this.setParam('ParamExpression_1', emo.expression1);
+        this.setParam('ParamExpression_2', emo.expression2);
+        this.setParam('ParamExpression_3', Math.max(0.0, Math.min(1.0, emo.expression3 + act.exp3Bonus)));
+        this.setParam('ParamExpression_4', emo.expression4);
+
+        // Cejas
+        this.setParam('ParamBrowLY', Math.max(-1.0, Math.min(1.0, emo.browY + emo.browAsymY)));
+        this.setParam('ParamBrowRY', Math.max(-1.0, Math.min(1.0, emo.browY - emo.browAsymY * 0.5)));
+        this.setParam('ParamBrowLAngle', emo.browAngle);
+        this.setParam('ParamBrowRAngle', emo.browAngle);
+        this.setParam('ParamBrowLForm', emo.browForm);
+        this.setParam('ParamBrowRForm', emo.browForm);
+
+        // Boca y Lengua
+        const finalMouthOpen = Math.max(0.0, Math.min(2.0, this.mouthCurrent + emo.mouthOpenOffset + act.mouthOpenBonus));
+        const finalMouthForm = Math.max(-1.0, Math.min(1.0, this.currentFormant + act.mouthFormBonus));
+        this.setParam('ParamMouthOpenY', finalMouthOpen);
+        this.setParam('ParamMouthForm', finalMouthForm);
+        this.setParam('ParamMouthX', emo.mouthX);
+        this.setParam('ParamTongueOut', Math.max(0.0, Math.min(1.0, emo.tongueOut + act.tongueBonus)));
+
+        // Mejillas y Rubor
+        this.setParam('ParamCheek', Math.max(0.0, Math.min(1.0, emo.cheek + act.cheekBonus)));
+        const finalPuff = Math.max(0.0, Math.min(1.0, emo.cheekPuff + act.cheekPuffBonus));
+        this.setParam('ParamCheekPuff', finalPuff);
+        this.setParam('ParamCheekPuff2', finalPuff);
+
+        // Cabeza y Cuello (Ángulos 3D combinados)
+        let headAngX = 0.0;
+        let headAngY = 0.0;
+        let headAngZ = 0.0;
+        if (isSleep) {
+          headAngX = Math.sin(now * 0.55) * 2.0;
+          headAngY = -13.0 + Math.sin(now * 0.7) * 1.5;
+          headAngZ = -5.0;
+          this.setParam('ParamAngleX', headAngX);
+          this.setParam('ParamAngleY', headAngY);
+          this.setParam('ParamAngleZ', headAngZ);
+          this.setParam('ParamBodyAngleX', 0.0);
+          this.setParam('ParamBodyAngleY', -4.0);
+          this.setParam('ParamBodyAngleZ', -2.0);
+          this.setParam('ParamPosition_Z', 0.0);
+        } else {
+          const speakNod = isSpeaking ? (Math.sin(now * 12.0) * this.smoothedAmp * 4.2) : 0.0;
+          const totalAngleX = Math.max(-30.0, Math.min(30.0, this.gaze.headCurrent.x + act.angleX + gst.headAngleX));
+          const totalAngleY = Math.max(-30.0, Math.min(30.0, this.gaze.headCurrent.y + emo.headPitchOffset + act.angleY + gst.headAngleY - speakNod));
+          const totalAngleZ = Math.max(-30.0, Math.min(30.0, this.gaze.headCurrent.z + emo.headTiltOffset + act.angleZ + gst.headAngleZ));
+          headAngX = totalAngleX;
+          headAngY = totalAngleY;
+          headAngZ = totalAngleZ;
+
+          this.setParam('ParamAngleX', totalAngleX);
+          this.setParam('ParamAngleY', totalAngleY);
+          this.setParam('ParamAngleZ', totalAngleZ);
+
+          // Cuerpo y Postura Articulada
+          const totalBodyX = Math.max(-10.0, Math.min(10.0, (this.gaze.currentGaze.x * 9.0) + act.bodyX + gst.bodyAngleX));
+          const totalBodyY = Math.max(-10.0, Math.min(10.0, (this.gaze.currentGaze.y * 6.0) + act.bodyY + gst.bodyAngleY));
+          const totalBodyZ = Math.max(-10.0, Math.min(10.0, (this.gaze.currentGaze.x * -4.0) + act.bodyZ + flt.bodyTiltZ + gst.bodyAngleZ));
+
+          this.setParam('ParamBodyAngleX', totalBodyX);
+          this.setParam('ParamBodyAngleY', totalBodyY);
+          this.setParam('ParamBodyAngleZ', totalBodyZ);
+
+          // Inclinación hacia adelante / profundidad
+          // Clamp posZ a [-0.30, 0.30] para evitar que HuoHuo muestre la espalda
+          this.setParam('ParamPosition_Z', Math.max(-0.30, Math.min(0.30, emo.bodyLeanOffset + act.posZ + gst.posZ)));
+        }
+
+        // Hombros y Brazos (Compatibilidad cruzada: Edith + Huohuo)
+        const totalShoulderL = gst.shoulderL + (act.shoulderL || 0.0);
+        const totalShoulderR = gst.shoulderR + (act.shoulderR || 0.0);
+        this.setCoreParam('ParamAngle_ShoulderL', totalShoulderL, ['Param7']);
+        this.setCoreParam('ParamAngle_ShoulderR', totalShoulderR, ['Param8']);
+
+        // Física y Deformación Dinámica de Brazos
+        const totalArmL = gst.armL + (act.armL || 0.0);
+        const totalArmR = gst.armR + (act.armR || 0.0);
+        this.setCoreParam('ParamArmPhysics_L1', totalArmL, ['Param93', 'Param94']);
+        this.setCoreParam('ParamArmPhysics_L2', totalArmL * 0.85, ['Param94']);
+        this.setCoreParam('ParamArmPhysics_L3', totalArmL * 0.65, ['Param95']);
+        this.setCoreParam('ParamArmPhysics_R1', totalArmR, ['Param93', 'Param94']);
+        this.setCoreParam('ParamArmPhysics_R2', totalArmR * 0.85, ['Param94']);
+        this.setCoreParam('ParamArmPhysics_R3', totalArmR * 0.65, ['Param95', 'Param124']);
+
+        this.setCoreParam('ParamArmBPhysics_L1', gst.armBL + (act.armBL || 0.0), ['Param94']);
+        this.setCoreParam('ParamArmBPhysics_L2', (gst.armBL + (act.armBL || 0.0)) * 0.80);
+        this.setCoreParam('ParamArmBPhysics_R1', gst.armBR + (act.armBR || 0.0), ['Param94']);
+        this.setCoreParam('ParamArmBPhysics_R2', (gst.armBR + (act.armBR || 0.0)) * 0.80);
+
+        // Dinámica y Amplitud de Mangas
+        const totalSleeveL = gst.sleeveL + (act.sleeveL || 0.0);
+        const totalSleeveR = gst.sleeveR + (act.sleeveR || 0.0);
+        this.setCoreParam('ParamSleevePhysics_L1', totalSleeveL, ['Param60']);
+        this.setCoreParam('ParamSleevePhysics_L2', totalSleeveL * 0.85);
+        this.setCoreParam('ParamSleevePhysics_R1', totalSleeveR, ['Param62']);
+        this.setCoreParam('ParamSleevePhysics_R2', totalSleeveR * 0.85);
+        this.setCoreParam('ParamSleeveLPhysics_L1', gst.sleeveLL + (act.sleeveLL || 0.0));
+        this.setCoreParam('ParamSleeveLPhysics_R1', gst.sleeveLR + (act.sleeveLR || 0.0));
+
+        // Torsión y Articulación de Pecho, Caderas y Columna
+        this.setCoreParam('ParamAngle_ChestZ', flt.chestTiltZ + gst.chestZ + (act.chestZ || 0.0), ['Param9', 'Param12']);
+        this.setCoreParam('ParamAngle_HipZ', flt.hipTiltZ + gst.hipZ + (act.hipZ || 0.0), ['Param10', 'Param11']);
+
+        // Posición general del modelo con desplazamiento de presentación y flotación holográfica continua
+        this.currentPresentationOffset += (this.targetPresentationOffset - this.currentPresentationOffset) * Math.min(1.0, dt * 5.0);
+        this.model.x = this.baseX + this.currentPresentationOffset + act.posX + flt.floatX + gst.posX;
+        this.model.y = this.baseY - act.posY + flt.floatY + gst.posY;
+        this.model.scale.set(this.baseScale * flt.floatScale);
+
+        // Respiración en cascada
+        this.setCoreParam('ParamBreath', finalBreath);
+        this.setCoreParam('ParamBreath2', Math.max(0.0, Math.min(1.0, (Math.sin(this.breathePhase * 1.02) + 1.0) * 0.5 + act.breathBonus)));
+        this.setCoreParam('ParamBreath3', Math.max(0.0, Math.min(1.0, (Math.sin(this.breathePhase * 0.98) + 1.0) * 0.5 + act.breathBonus)));
+
+        // 7. Video Game Suite: RPG Stance, Props, Wings, Tail, Ears, Doll, FX
+        if (this.gameMotion) {
+          const gm = this.gameMotion;
+
+          // RPG Stance weight shifting: feet and hips
+          this.setCoreParam('ParamAngle_Foot_L', gm.footAngleL);
+          this.setCoreParam('ParamAngle_Foot_R', gm.footAngleR);
+          this.setCoreParam('ParamAngle_HipUp', gm.hipUp);
+          this.setCoreParam('ParamAngle_HipDown', gm.hipDown);
+
+          // Props: Grimoire / Tablet / Peluche / Bandera (Edith + Huohuo) - Desactivado
+          this.setCoreParam('ParamBook1', 0.0, ['Param99', 'Param63', 'Param127']);
+          this.setCoreParam('ParamBook2', 0.0);
+
+          // Props: Holographic 3D Rings & Glyphs / Luces Mágicas (Edith + Huohuo)
+          const rings = gm.props.hologramRings;
+          this.setCoreParam('Ring_Rotate', rings.rot * rings.value, ['Param102', 'Param103', 'Param104']);
+          this.setCoreParam('Ring_Flip', rings.flip * rings.value);
+          this.setCoreParam('Ring_Perspective', rings.persp * rings.value);
+          for (let c = 1; c <= 4; c++) {
+            this.setCoreParam(`Circle_Rotate_${c}`, rings.circles[c - 1] * rings.value);
+          }
+          for (let c = 1; c <= 3; c++) {
+            this.setCoreParam(`Circle_Posizion_${c}`, rings.value);
+          }
+          for (let c = 1; c <= 6; c++) {
+            this.setCoreParam(`Circle_Flip${c}`, rings.flip * rings.value);
+          }
+
+          // Props: Jibril-style Rotating Anime Light Halo - Desactivado
+          this.setCoreParam('fire', 0.0, ['Param105']);
+
+          // Expression Tremors / Anime FX
+          if (gm.pupilQuake > 0.01) {
+            const qk = (Math.random() - 0.5) * gm.pupilQuake * 2.0;
+            this.setCoreParam('ParamPupilQuake_L1', qk);
+            this.setCoreParam('ParamPupilQuake_R1', qk);
+          }
+
+          // Hat Ears Twitching
+          this.setCoreParam('ParamHatEar_L1', gm.earTwitchL);
+          this.setCoreParam('ParamHatEar_L2', gm.earTwitchL * 0.8);
+          this.setCoreParam('ParamHatEar_L3', gm.earTwitchL * 0.6);
+          this.setCoreParam('ParamHatEar_R1', gm.earTwitchR);
+          this.setCoreParam('ParamHatEar_R2', gm.earTwitchR * 0.8);
+          this.setCoreParam('ParamHatEar_R3', gm.earTwitchR * 0.6);
+
+          // Fantasy Wings Flutter
+          for (let w = 1; w <= 4; w++) {
+            const wVal = gm.wings[w - 1];
+            this.setCoreParam(`ParamWingPhysics_L${w}`, wVal);
+            this.setCoreParam(`ParamWingPhysics_R${w}`, -wVal);
+          }
+
+          // Fantasy Tail Sinusoidal Propagation (Edith + Huohuo)
+          for (let tl = 1; tl <= 7; tl++) {
+            const tlVal = gm.tailNodes[tl - 1];
+            this.setCoreParam(`ParamTailPhysics_L${tl}`, tlVal, ['Param100', 'Param115']);
+            this.setCoreParam(`ParamTailPhysics_R${tl}`, tlVal, ['Param100', 'Param115']);
+          }
+
+          // Living Mascot Doll Companion (Safe Parameter Mapping)
+          const doll = gm.doll;
+          this.setCoreParam('ParamDollPhysics_X', doll.x);
+          this.setCoreParam('ParamDollPhysics_Y', doll.y);
+          this.setCoreParam('ParamDollPhysics_Z', doll.z);
+          this.setCoreParam('ParamDollAngle_L', doll.angleL);
+          this.setCoreParam('ParamDollAngle_R', doll.angleR);
+          this.setCoreParam('ParamDollEarPhysics_L', doll.earL);
+          this.setCoreParam('ParamDollEarPhysics_R', doll.earR);
+          this.setCoreParam('ParamDollTailPhysics', doll.tail);
+          this.setCoreParam('ParamDollArmPhysics', doll.arm);
+        }
+
+        // 8. Renderizar Capa de Superposición (Halo de Luz Jibril + Luciérnaga + Ondas Táctiles)
+        if (this.firefly) {
+          try {
+            this.firefly.render(this.state);
+          } catch (e) {
+            console.warn("Firefly/Halo render error:", e);
+          }
+        }
+      }
+
+      updateDebugHud() {
+        if (!this.debugHud) return;
+        const st = this.getStatus();
+        this.debugHud.innerHTML = `
+          <b>EDITH LIVE2D ENGINE</b> [${st.fps} FPS]<br>
+          <b>State:</b> ${st.state} | <b>Mood:</b> ${st.mood}<br>
+          <b>Emotion:</b> ${st.emotion} (${(st.emotionIntensity * 100).toFixed(0)}%)<br>
+          <b>Gaze:</b> ${st.gazeMode}<br>
+          <b>Action:</b> ${st.activeAction || 'NONE'} | <b>Gesture:</b> ${st.activeGesture || 'NONE'}<br>
+          <b>Float:</b> ${st.floatElevation}px<br>
+          <b>Autonomy:</b> ${st.autonomyEnabled ? 'ON' : 'OFF'} (${st.spontaneityLevel.toFixed(1)}x)<br>
+          <b>Voice:</b> ${st.speaking ? 'SPEAKING' : 'SILENT'} (Amp: ${(st.amplitude).toFixed(2)})
+        `;
+      }
+    }
+
+    // Instancia global
+    window.live2dApp = new EdithLive2DApp();
+  </script>
+</body>
+</html>
