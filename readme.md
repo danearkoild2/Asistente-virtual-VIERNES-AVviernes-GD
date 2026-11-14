@@ -391,7 +391,4 @@ Licensed under **[Creative Commons BY-NC 4.0](https://creativecommons.org/licens
 
 Engineered by a developer building a real-world VIERNES-style assistant.
 ⭐ **Star the repository to support the journey to Mark 100.**
-
-| Platform | Link |
-| --- | --- |
-| Documentation | [Documentación](https://[www.youtube.com/@FatihMakes](https://viernes.free.nf/)) |
+POWERED BY DanearKoild
